@@ -6,10 +6,10 @@ Natural client communication → IntentFlow interpretation → Developer confirm
 
 ---
 
-## Current Status: Phase 1 — Engineering Foundation
+## Current Status: Phase 2 — Authentication, Organizations & Projects
 
-IntentFlow is currently in **Phase 1 — Engineering Foundation**. 
-This phase focuses exclusively on establishing a clean, production-ready monorepo foundation, establishing cross-app communication, and setting up strict code quality tooling.
+IntentFlow has completed **Phase 2 — Authentication, Organizations & Projects**.
+All user authentication, organization management, invitation flows, project scoping, and role authorization are fully persisted to PostgreSQL via Drizzle ORM.
 
 ---
 
@@ -34,13 +34,13 @@ intentflow/
 │   ├── mobile/       # Expo React Native mobile application
 │   └── api/          # Fastify REST API (Port 4000)
 ├── packages/
-│   ├── types/        # Shared TypeScript domain types
-│   ├── validation/   # Shared Zod validation schemas
-│   └── config/       # Shared non-secret configuration constants
+│   ├── types/        # Shared TypeScript domain types (@intentflow/types)
+│   ├── validation/   # Shared Zod validation schemas (@intentflow/validation)
+│   └── config/       # Shared non-secret configuration constants (@intentflow/config)
 ├── docs/
 │   ├── product/      # Product specifications
 │   ├── ux/           # UX design documentation
-│   └── architecture/ # Technical architecture guides
+│   └── architecture/ # Technical architecture guides & Phase 2 docs
 ├── package.json
 ├── pnpm-workspace.yaml
 ├── turbo.json
@@ -57,16 +57,13 @@ intentflow/
 ### 1. Prerequisites
 - Node.js >= 18.0.0
 - pnpm >= 8.0.0
+- PostgreSQL database running on port 5432
 
-### 2. Installation
+### 2. Installation & Database Migration
 ```bash
 pnpm install
-```
-
-### 3. Environment Configuration
-Copy `.env.example` to `.env` if custom database or port configuration is required:
-```bash
 cp .env.example .env
+pnpm --filter @intentflow/api db:migrate
 ```
 
 ---
@@ -84,18 +81,10 @@ Execute from root:
 
 ---
 
-## 🔗 Endpoints & Verification
-
-- **API Health Check**: `GET http://localhost:4000/health`
-- **Web Verification Screen**: `http://localhost:3000` (verifies API connection)
-- **Mobile Verification Screen**: Run `pnpm --filter @intentflow/mobile dev`
-
----
-
 ## 🗺️ Roadmap & Implementation Phases
 
-- **Phase 1 — Engineering Foundation** *(Current)*
-- **Phase 2 — Authentication, Organizations & Projects**
-- **Phase 3 — Natural Communication & Intent Engine**
+- **Phase 1 — Engineering Foundation** *(Completed)*
+- **Phase 2 — Authentication, Organizations & Projects** *(Completed)*
+- **Phase 3 — Conversations & Messaging** *(Next)*
 - **Phase 4 — Structured Work & Review Pipelines**
 - **Phase 5 — Full Polish, Notifications & Analytics**
