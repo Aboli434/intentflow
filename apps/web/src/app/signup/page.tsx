@@ -50,55 +50,53 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-slate-950 text-slate-100">
-      <div className="w-full max-w-md space-y-6 rounded-xl border border-slate-800 bg-slate-900/60 p-8 shadow-2xl backdrop-blur-sm">
+    <div className="flex min-h-screen items-center justify-center p-4 bg-slate-50 text-slate-900 selection:bg-indigo-500 selection:text-white">
+      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
         <div>
-          <span className="inline-block px-2.5 py-1 text-xs font-mono font-medium rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 mb-2">
-            IntentFlow Phase 2
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Create Account</h1>
-          <p className="text-sm text-slate-400 mt-1">Get started with your collaborative workspace</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-indigo-600">IntentFlow</h1>
+          <h2 className="text-lg font-bold text-slate-900 mt-1">Create Account</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Get started with your collaborative workspace</p>
         </div>
 
         {invitationToken && (
-          <div className="rounded-md border border-sky-500/20 bg-sky-500/10 p-3 text-xs text-sky-300">
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3.5 text-xs font-semibold text-indigo-700">
             Accepting organization invitation upon registration.
           </div>
         )}
 
         {error && (
-          <div className="rounded-md border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400 font-mono">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-medium text-rose-700">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Full Name</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Jane Doe"
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:border-sky-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Email Address</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:border-sky-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Password</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
             <input
               type="password"
               required
@@ -106,34 +104,34 @@ export default function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:border-sky-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Confirm Password</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm Password</label>
             <input
               type="password"
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Re-enter password"
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:border-sky-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-sky-600 hover:bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+            className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all disabled:opacity-50"
           >
             {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
         </form>
 
-        <div className="border-t border-slate-800 pt-4 text-center text-xs text-slate-400">
+        <div className="border-t border-slate-100 pt-4 text-center text-xs text-slate-500">
           Already have an account?{' '}
-          <Link href="/login" className="text-sky-400 font-semibold hover:underline">
+          <Link href="/login" className="text-indigo-600 font-bold hover:underline">
             Sign in
           </Link>
         </div>

@@ -90,6 +90,12 @@ export function evaluatePolicy(
     case 'org:update':
     case 'org:invite':
     case 'org:remove_member':
+    case 'org:invitation_view':
+    case 'org:invitation_create':
+    case 'org:invitation_cancel':
+    case 'org:invitation_resend':
+    case 'org:member_remove':
+    case 'org:member_edit':
       // Admin only administrative actions
       if (ctx.orgRole === 'admin') {
         return { allowed: true };
@@ -149,6 +155,152 @@ export function evaluatePolicy(
       return {
         allowed: false,
         reason: 'Client approval is role-specific to project clients only (admins without client project role are excluded)',
+      };
+
+    case 'conversation:create':
+    case 'conversation:view':
+    case 'message:view':
+    case 'message:send':
+    case 'attachment:upload':
+    case 'attachment:view':
+      // Org Admin has administrative visibility; project members (developers & clients) have access
+      if (ctx.orgRole === 'admin' || ctx.projectRole) {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: 'Requires organization admin role or assigned project membership' };
+
+    case 'conversation:manage_participants':
+      // Org Admin or assigned project developer can manage conversation participants
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer') {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: 'Requires org admin or project developer role' };
+
+    case 'intent:view':
+      // Org Admin or assigned project member (developer or client) can view intents
+      if (ctx.orgRole === 'admin' || ctx.projectRole) {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: 'Requires org admin or project membership to view intent' };
+
+    case 'intent:analyze':
+    case 'intent:edit':
+    case 'intent:confirm':
+    case 'intent:reject':
+    case 'intent:request_clarification':
+      // Developers assigned to project or Org Admins can review/manage intents
+      // Clients cannot perform internal intent edits, confirmation, or analysis triggers
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer') {
+        return { allowed: true };
+      }
+      return {
+        allowed: false,
+        reason: 'Internal intent review actions require org admin or assigned developer role',
+      };
+
+    case 'work:view':
+    case 'work:view_activity':
+      // Org Admin or any assigned project member (developer or client) can view work items & progress
+      if (ctx.orgRole === 'admin' || ctx.projectRole) {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: 'Requires organization admin role or assigned project membership' };
+
+    case 'work:create':
+    case 'work:edit':
+    case 'work:assign':
+    case 'work:change_status':
+    case 'work:generate_proposal':
+    case 'work:approve_proposal':
+    case 'work:complete':
+      // Org Admin or assigned project developer can execute work lifecycle and proposal actions
+      // Clients can view progress but CANNOT generate/approve proposals or edit internal work
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer') {
+        return { allowed: true };
+      }
+      return {
+        allowed: false,
+        reason: 'Execution and proposal actions require organization admin or assigned developer role',
+      };
+
+    case 'notification:view':
+    case 'notification:mark_read':
+      // Any authenticated organization member can view/manage their own personal notifications
+      return { allowed: true };
+
+    case 'activity:view':
+      // Org Admin has org-wide activity access; assigned project members (dev & client) have project activity access
+      if (ctx.orgRole === 'admin' || ctx.projectRole) {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: 'Requires organization admin role or assigned project membership' };
+
+    case 'deliverable:view':
+    case 'review:view':
+    case 'revision:view':
+    case 'milestone:view':
+      // Org Admin or assigned project member (developer or client)
+      if (ctx.orgRole === 'admin' || ctx.projectRole) {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: 'Requires organization admin role or assigned project membership' };
+
+    case 'deliverable:create':
+    case 'deliverable:edit':
+    case 'deliverable:submit_review':
+    case 'milestone:create':
+    case 'milestone:edit':
+    case 'milestone:complete':
+    case 'revision:manage':
+      // Org Admin or assigned project developer
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer') {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: 'Requires organization admin role or assigned developer role on project' };
+
+    case 'deliverable:approve':
+    case 'deliverable:request_changes':
+    case 'review:create':
+    case 'revision:create':
+      // Strictly assigned project CLIENT role only (orgRole !== client approval authority!)
+      if (ctx.projectRole === 'client') {
+        return { allowed: true };
+      }
+      return {
+        allowed: false,
+        reason: 'Client approval authority requires explicit project assignment with client role',
+      };
+
+    case 'project:completion_view':
+    case 'project:closure_view':
+    case 'project:handoff_view':
+      // Org Admin or assigned project member (developer or client)
+      if (ctx.orgRole === 'admin' || ctx.projectRole) {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: 'Requires organization admin role or assigned project membership' };
+
+    case 'project:completion_manage':
+    case 'project:closure_create':
+    case 'project:closure_submit':
+    case 'project:closure_revision_manage':
+    case 'project:handoff_manage':
+      // Org Admin or assigned project developer
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer') {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: 'Requires organization admin role or assigned developer role on project' };
+
+    case 'project:closure_approve':
+    case 'project:closure_request_changes':
+    case 'project:handoff_acknowledge':
+      // Strictly assigned project CLIENT role only (orgRole !== client approval authority!)
+      if (ctx.projectRole === 'client') {
+        return { allowed: true };
+      }
+      return {
+        allowed: false,
+        reason: 'Final client closure approval requires explicit project assignment with client role',
       };
 
     default:

@@ -1,23 +1,68 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, ActivityIndicator } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { mobileGetProjectDetail } from '../../../src/api-client';
-import { Project } from '@intentflow/types';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+} from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  mobileGetProjectDetail,
+  mobileGetProjectConversations,
+  mobileCreateConversation,
+} from '../../../src/api-client';
+import { Project, Conversation } from '@intentflow/types';
 
 export default function MobileProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
+  const [conversations, setConversations] = useState<(Conversation & { unread?: boolean })[]>([]);
+  const [newTitle, setNewTitle] = useState('');
+  const [showNewModal, setShowNewModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
-      mobileGetProjectDetail(id)
-        .then(setProject)
-        .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load project details'))
-        .finally(() => setLoading(false));
+      loadData();
     }
   }, [id]);
+
+  const loadData = async () => {
+    if (!id) return;
+    try {
+      const [p, convs] = await Promise.all([
+        mobileGetProjectDetail(id),
+        mobileGetProjectConversations(id),
+      ]);
+      setProject(p);
+      setConversations(convs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load project details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateConversation = async () => {
+    if (!id || !newTitle.trim()) return;
+    try {
+      const created = await mobileCreateConversation(id, newTitle.trim());
+      setNewTitle('');
+      setShowNewModal(false);
+      await loadData();
+      router.push({
+        pathname: '/(app)/conversations/[conversationId]',
+        params: { conversationId: created.id, title: created.title },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create conversation');
+    }
+  };
 
   if (loading) {
     return (
@@ -48,28 +93,65 @@ export default function MobileProjectDetailScreen() {
           <Text style={styles.metaLabel}>Status:</Text>
           <Text style={styles.statusBadge}>{project.status}</Text>
         </View>
-
-        <View style={styles.metaRow}>
-          <Text style={styles.metaLabel}>Created:</Text>
-          <Text style={styles.metaVal}>{new Date(project.createdAt).toLocaleDateString()}</Text>
-        </View>
       </View>
 
+      {/* Conversations Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Project Members</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Conversations</Text>
+          <TouchableOpacity
+            style={styles.newBtn}
+            onPress={() => setShowNewModal(!showNewModal)}
+          >
+            <Text style={styles.newBtnText}>+ New</Text>
+          </TouchableOpacity>
+        </View>
 
-        {project.members && project.members.length > 0 ? (
-          project.members.map((pm) => (
-            <View key={pm.id} style={styles.memberCard}>
-              <View>
-                <Text style={styles.memberName}>{pm.user?.name}</Text>
-                <Text style={styles.memberEmail}>{pm.user?.email}</Text>
+        {showNewModal && (
+          <View style={styles.newModal}>
+            <TextInput
+              style={styles.input}
+              value={newTitle}
+              onChangeText={setNewTitle}
+              placeholder="Conversation title (e.g. Homepage Changes)"
+              placeholderTextColor="#64748b"
+            />
+            <TouchableOpacity
+              style={[styles.createBtn, !newTitle.trim() && styles.btnDisabled]}
+              onPress={handleCreateConversation}
+              disabled={!newTitle.trim()}
+            >
+              <Text style={styles.createBtnText}>Create Thread</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {conversations.length > 0 ? (
+          conversations.map((conv) => (
+            <TouchableOpacity
+              key={conv.id}
+              style={styles.convCard}
+              onPress={() =>
+                router.push({
+                  pathname: '/(app)/conversations/[conversationId]',
+                  params: { conversationId: conv.id, title: conv.title },
+                })
+              }
+            >
+              <View style={styles.convRow}>
+                <Text style={styles.convTitle}>{conv.title}</Text>
+                {conv.unread && <View style={styles.unreadDot} />}
               </View>
-              <Text style={styles.roleTag}>{pm.role}</Text>
-            </View>
+              {conv.lastMessage && (
+                <Text style={styles.convPreview} numberOfLines={1}>
+                  {conv.lastMessage.senderName}: {conv.lastMessage.body}
+                </Text>
+              )}
+              <Text style={styles.convMeta}>{conv.participantCount || 1} participant(s)</Text>
+            </TouchableOpacity>
           ))
         ) : (
-          <Text style={styles.emptyMembers}>No members assigned to this project yet.</Text>
+          <Text style={styles.emptyText}>No conversations yet. Start a discussion for this project.</Text>
         )}
       </View>
     </ScrollView>
@@ -96,7 +178,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#0f172a',
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: '#1e293b',
@@ -105,34 +187,27 @@ const styles = StyleSheet.create({
     color: '#38bdf8',
     fontSize: 12,
     fontFamily: 'Courier',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   title: {
     color: '#ffffff',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   desc: {
     color: '#cbd5e1',
-    fontSize: 14,
-    marginBottom: 16,
-    lineHeight: 20,
+    fontSize: 13,
+    marginBottom: 12,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
   metaLabel: {
     color: '#64748b',
     fontSize: 12,
-    width: 70,
-  },
-  metaVal: {
-    color: '#94a3b8',
-    fontSize: 12,
-    fontFamily: 'Courier',
+    width: 60,
   },
   statusBadge: {
     color: '#34d399',
@@ -147,44 +222,97 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 4,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 12,
   },
-  memberCard: {
+  newBtn: {
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  newBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  newModal: {
     backgroundColor: '#0f172a',
+    padding: 12,
     borderRadius: 10,
-    padding: 14,
-    marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#1e293b',
   },
-  memberName: {
+  input: {
+    backgroundColor: '#020617',
+    color: '#ffffff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  createBtn: {
+    backgroundColor: '#0284c7',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
+  createBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  convCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  convRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  convTitle: {
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
   },
-  memberEmail: {
-    color: '#64748b',
-    fontSize: 11,
-    fontFamily: 'Courier',
-  },
-  roleTag: {
-    color: '#38bdf8',
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
-    fontSize: 11,
-    fontFamily: 'Courier',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  unreadDot: {
+    width: 8,
+    height: 8,
     borderRadius: 4,
-    textTransform: 'uppercase',
+    backgroundColor: '#38bdf8',
   },
-  emptyMembers: {
+  convPreview: {
+    color: '#94a3b8',
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  convMeta: {
+    color: '#64748b',
+    fontSize: 10,
+    fontFamily: 'Courier',
+  },
+  emptyText: {
     color: '#64748b',
     fontSize: 12,
   },

@@ -1,6 +1,6 @@
 import { pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
-import { users } from './users.js';
-import { organizations } from './organizations.js';
+import { users } from './users';
+import { organizations } from './organizations';
 
 export const organizationMembers = pgTable(
   'organization_members',

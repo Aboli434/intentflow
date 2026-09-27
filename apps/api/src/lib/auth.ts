@@ -37,6 +37,11 @@ export interface AuthenticatedRequest extends FastifyRequest {
 }
 
 export async function authenticateRequest(request: AuthenticatedRequest, reply: FastifyReply) {
+  // If WebSocket upgrade request, allow WebSocket route to perform custom connection auth
+  if (request.headers.upgrade === 'websocket') {
+    return;
+  }
+
   const authHeader = request.headers.authorization;
   let token: string | undefined;
 
@@ -44,6 +49,8 @@ export async function authenticateRequest(request: AuthenticatedRequest, reply: 
     token = authHeader.substring(7);
   } else if (request.cookies && request.cookies.session_token) {
     token = request.cookies.session_token;
+  } else if ((request.query as any)?.token) {
+    token = (request.query as any).token;
   }
 
   if (!token) {

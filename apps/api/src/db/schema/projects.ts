@@ -1,6 +1,6 @@
 import { pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
-import { organizations } from './organizations.js';
-import { users } from './users.js';
+import { organizations } from './organizations';
+import { users } from './users';
 
 export const projects = pgTable('projects', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -9,7 +9,11 @@ export const projects = pgTable('projects', {
     .references(() => organizations.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   description: text('description'),
-  status: text('status', { enum: ['active', 'archived'] }).default('active').notNull(),
+  status: text('status', {
+    enum: ['active', 'closure_requested', 'client_review', 'changes_requested', 'completed', 'archived'],
+  })
+    .default('active')
+    .notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
 });

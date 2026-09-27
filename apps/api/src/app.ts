@@ -2,6 +2,8 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import cookie from '@fastify/cookie';
+import websocket from '@fastify/websocket';
+import multipart from '@fastify/multipart';
 import { env } from './config/env.js';
 import { checkDatabaseConnection } from './config/database.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
@@ -9,13 +11,23 @@ import { usersRoutes } from './modules/users/users.routes.js';
 import { organizationRoutes } from './modules/organizations/organizations.routes.js';
 import { invitationRoutes } from './modules/invitations/invitations.routes.js';
 import { projectRoutes } from './modules/projects/projects.routes.js';
+import { conversationRoutes } from './modules/conversations/conversations.routes.js';
+import { attachmentRoutes } from './modules/attachments/attachments.routes.js';
+import { intentRoutes } from './modules/intents/intents.routes.js';
+import { workRoutes } from './modules/work/work.routes.js';
+import { notificationRoutes } from './modules/notifications/notifications.routes.js';
+import { deliverableRoutes } from './modules/deliverables/deliverables.routes.js';
+import { milestoneRoutes } from './modules/milestones/milestones.routes.js';
+import { projectClosureRoutes } from './modules/project-closure/project-closure.routes.js';
 
 export function buildApp() {
   const app = Fastify({
     logger: env.NODE_ENV === 'test' ? false : true,
   });
 
-  // Security Plugins
+  // Security & Media Plugins
+  app.register(websocket);
+  app.register(multipart, { limits: { fileSize: 25 * 1024 * 1024 } }); // 25MB max
   app.register(helmet, { contentSecurityPolicy: false });
   app.register(cors, {
     origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN,
@@ -43,8 +55,8 @@ export function buildApp() {
   app.get('/', async () => {
     return {
       message: 'IntentFlow API Service Foundation',
-      version: '0.2.0',
-      phase: 'Phase 2 — Authentication, Organizations & Projects',
+      version: '0.8.0',
+      phase: 'Phase 8 — Project Closure, Handoff & Completion',
       docs: '/health',
     };
   });
@@ -64,8 +76,16 @@ export function buildApp() {
   app.register(authRoutes, { prefix: '/api/auth' });
   app.register(usersRoutes, { prefix: '/api/users' });
   app.register(organizationRoutes, { prefix: '/api/organizations' });
-  app.register(invitationRoutes, { prefix: '/api/invitations' });
+  app.register(invitationRoutes, { prefix: '/api' });
   app.register(projectRoutes, { prefix: '/api/projects' });
+  app.register(conversationRoutes, { prefix: '/api' });
+  app.register(attachmentRoutes, { prefix: '/api/attachments' });
+  app.register(intentRoutes, { prefix: '/api' });
+  app.register(workRoutes, { prefix: '/api' });
+  app.register(notificationRoutes, { prefix: '/api' });
+  app.register(deliverableRoutes, { prefix: '/api' });
+  app.register(milestoneRoutes, { prefix: '/api' });
+  app.register(projectClosureRoutes, { prefix: '/api' });
 
   return app;
 }
