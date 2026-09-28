@@ -18,6 +18,8 @@ import {
 import { ClosureEditor } from './ClosureEditor';
 import { ClientClosureReview } from './ClientClosureReview';
 import { ProjectHandoffView } from './ProjectHandoffView';
+import { useToast } from '../ui/ToastContext';
+
 
 interface ProjectCompletionViewProps {
   projectId: string;
@@ -30,6 +32,7 @@ export function ProjectCompletionView({
   isClient,
   isDeveloper,
 }: ProjectCompletionViewProps) {
+  const { showToast } = useToast();
   const [eligibility, setEligibility] = useState<ProjectCompletionEligibility | null>(null);
   const [checklist, setChecklist] = useState<ProjectCompletionChecklist[]>([]);
   const [closures, setClosures] = useState<ProjectClosure[]>([]);
@@ -74,18 +77,20 @@ export function ProjectCompletionView({
     const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
     try {
       await apiUpdateChecklistItemStatus(id, newStatus);
+      showToast('Checklist item updated', { type: 'success' });
       loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to update checklist item');
+      showToast('Failed to update checklist item', { type: 'error', message: err.message });
     }
   };
 
   const handleResolveRevision = async (revisionId: string) => {
     try {
       await apiUpdateClosureRevisionStatus(revisionId, 'resolved');
+      showToast('Closure revision resolved', { type: 'success' });
       loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to resolve closure revision');
+      showToast('Failed to resolve closure revision', { type: 'error', message: err.message });
     }
   };
 

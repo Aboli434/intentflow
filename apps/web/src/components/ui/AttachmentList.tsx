@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import { apiUploadAttachment, apiDeleteAttachment, getAttachmentDownloadUrl } from '../../lib/api-client';
 
+import { useToast } from './ToastContext';
+import { ConfirmModal } from './ConfirmModal';
+
 export interface AttachmentItem {
   id: string;
   fileName: string;
@@ -33,9 +36,11 @@ export function AttachmentList({
   onUploadSuccess,
   onDeleteSuccess,
 }: AttachmentListProps) {
+  const { showToast } = useToast();
   const [uploading, setUploading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<boolean>(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -59,7 +64,9 @@ export function AttachmentList({
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file.size > 25 * 1024 * 1024) {
-        setErrorMsg(`"${file.name}" exceeds the 25MB file size limit.`);
+        const msg = `"${file.name}" exceeds the 25MB file size limit.`;
+        setErrorMsg(msg);
+        showToast('File size limit exceeded', { type: 'error', message: msg });
         setUploading(false);
         return;
       }
@@ -72,20 +79,26 @@ export function AttachmentList({
           relatedEntityId
         );
         onUploadSuccess?.(uploaded);
+        showToast('Attachment uploaded', { type: 'success', message: file.name });
       } catch (err: any) {
-        setErrorMsg(err.message || `Failed to upload "${file.name}"`);
+        const msg = err.message || `Failed to upload "${file.name}"`;
+        setErrorMsg(msg);
+        showToast('Upload failed', { type: 'error', message: msg });
       }
     }
     setUploading(false);
   };
 
-  const handleDelete = async (attId: string) => {
-    if (!confirm('Are you sure you want to remove this file attachment?')) return;
+  const confirmDelete = async () => {
+    if (!deletingId) return;
     try {
-      await apiDeleteAttachment(attId);
-      onDeleteSuccess?.(attId);
+      await apiDeleteAttachment(deletingId);
+      onDeleteSuccess?.(deletingId);
+      showToast('Attachment removed', { type: 'success' });
     } catch (err: any) {
-      alert(err.message || 'Failed to delete file attachment');
+      showToast('Delete failed', { type: 'error', message: err.message });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -169,7 +182,7 @@ export function AttachmentList({
                 {canDelete && (
                   <button
                     type="button"
-                    onClick={() => handleDelete(att.id)}
+                    onClick={() => setDeletingId(att.id)}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
                     title="Delete attachment"
                     aria-label="Delete attachment"
@@ -182,6 +195,16 @@ export function AttachmentList({
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(deletingId)}
+        onClose={() => setDeletingId(null)}
+        onConfirm={confirmDelete}
+        title="Delete Attachment"
+        description="Are you sure you want to delete this attachment? This action cannot be undone."
+        confirmText="Delete Attachment"
+        variant="danger"
+      />
     </div>
   );
 }

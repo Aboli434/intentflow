@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ProjectHandoff } from '@intentflow/types';
 import { apiAcknowledgeProjectHandoff } from '../../lib/api-client';
+import { useToast } from '../ui/ToastContext';
 
 interface ProjectHandoffViewProps {
   handoff: ProjectHandoff;
@@ -11,15 +12,17 @@ interface ProjectHandoffViewProps {
 }
 
 export function ProjectHandoffView({ handoff, isClient, onRefresh }: ProjectHandoffViewProps) {
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
 
   const handleAcknowledge = async () => {
     setLoading(true);
     try {
       await apiAcknowledgeProjectHandoff(handoff.id);
+      showToast('Handoff acknowledged', { type: 'success', message: 'Project successfully closed and accepted.' });
       onRefresh();
     } catch (err: any) {
-      alert(err.message || 'Failed to acknowledge handoff');
+      showToast('Failed to acknowledge handoff', { type: 'error', message: err.message });
     } finally {
       setLoading(false);
     }

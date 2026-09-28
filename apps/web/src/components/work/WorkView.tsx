@@ -11,6 +11,8 @@ import {
   apiGetWorkItemActivity,
 } from '../../lib/api-client';
 
+import { useToast } from '../ui/ToastContext';
+
 interface WorkViewProps {
   projectId: string;
   userRole?: string;
@@ -28,6 +30,7 @@ export function WorkView({
   projectMembers = [],
   onSelectMessage,
 }: WorkViewProps) {
+  const { showToast } = useToast();
   const [workItems, setWorkItems] = useState<WorkItem[]>([]);
   const [metrics, setMetrics] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -112,9 +115,10 @@ export function WorkView({
         const activity = await apiGetWorkItemActivity(itemId, orgId);
         setSelectedActivities(activity);
       }
+      showToast('Status updated', { type: 'success', message: `Work item marked as ${newStatus}` });
       fetchWork();
     } catch (err: any) {
-      alert(err.message || 'Failed to update status');
+      showToast('Failed to update status', { type: 'error', message: err.message });
     }
   };
 
@@ -127,8 +131,9 @@ export function WorkView({
         const activity = await apiGetWorkItemActivity(itemId, orgId);
         setSelectedActivities(activity);
       }
+      showToast('Work item assigned', { type: 'success' });
     } catch (err: any) {
-      alert(err.message || 'Failed to assign work item');
+      showToast('Failed to assign work item', { type: 'error', message: err.message });
     }
   };
 
@@ -150,9 +155,10 @@ export function WorkView({
       setNewTitle('');
       setNewDesc('');
       setShowCreateModal(false);
+      showToast('Work item created', { type: 'success', message: newTitle });
       fetchWork();
     } catch (err: any) {
-      alert(err.message || 'Failed to create work item');
+      showToast('Failed to create work item', { type: 'error', message: err.message });
     } finally {
       setCreating(false);
     }

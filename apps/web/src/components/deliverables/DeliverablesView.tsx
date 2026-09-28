@@ -15,6 +15,8 @@ import { ClientReviewPanel } from './ClientReviewPanel';
 import { DeliverableEditor } from './DeliverableEditor';
 import { EmptyState } from '../common/EmptyState';
 
+import { useToast } from '../ui/ToastContext';
+
 interface DeliverablesViewProps {
   projectId: string;
   isClient: boolean;
@@ -28,6 +30,7 @@ export function DeliverablesView({
   isClient,
   isDeveloper,
 }: DeliverablesViewProps) {
+  const { showToast } = useToast();
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [milestones, setMilestones] = useState<ProjectMilestone[]>([]);
   const [workItems, setWorkItems] = useState<WorkItem[]>([]);
@@ -65,27 +68,30 @@ export function DeliverablesView({
   const handleSubmitForReview = async (id: string) => {
     try {
       await apiSubmitDeliverableForReview(id);
+      showToast('Deliverable submitted', { type: 'success', message: 'Sent to client for review' });
       loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to submit deliverable');
+      showToast('Failed to submit deliverable', { type: 'error', message: err.message });
     }
   };
 
   const handleMilestoneStatusChange = async (milestoneId: string, newStatus: string) => {
     try {
       await apiUpdateMilestoneStatus(milestoneId, newStatus);
+      showToast('Milestone status updated', { type: 'success' });
       loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to update milestone status');
+      showToast('Failed to update milestone', { type: 'error', message: err.message });
     }
   };
 
   const handleResolveRevision = async (revisionId: string) => {
     try {
       await apiUpdateRevisionStatus(revisionId, 'resolved');
+      showToast('Revision marked as resolved', { type: 'success' });
       loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to resolve revision');
+      showToast('Failed to resolve revision', { type: 'error', message: err.message });
     }
   };
 

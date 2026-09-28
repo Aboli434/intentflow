@@ -9,3 +9,5 @@ export * from './Modal';
 export * from './SectionHeader';
 export * from './ToastContext';
 export * from './AttachmentList';
+export * from './ConfirmModal';
+
