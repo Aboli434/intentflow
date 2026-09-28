@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Deliverable, ClientReview } from '@intentflow/types';
+import { Deliverable } from '@intentflow/types';
 import { apiApproveDeliverable, apiRequestDeliverableChanges } from '../../lib/api-client';
 
 interface ClientReviewPanelProps {
@@ -34,14 +34,14 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
   };
 
   const handleRequestChanges = async () => {
-    if (!comment.trim()) {
-      setError('Please provide specific comments describing the requested changes');
+    if (comment.trim().length < 10) {
+      setError('Please provide specific feedback detailing requested changes (minimum 10 characters).');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      await apiRequestDeliverableChanges(deliverable.id, comment);
+      await apiRequestDeliverableChanges(deliverable.id, comment.trim());
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'Failed to submit change request');
@@ -123,7 +123,7 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
               <button
                 type="button"
                 onClick={() => setMode('request_changes')}
-                className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition"
+                className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition min-h-[40px] cursor-pointer"
               >
                 ↻ Request Changes
               </button>
@@ -131,7 +131,7 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
                 type="button"
                 disabled={submitting}
                 onClick={handleApprove}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition"
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition min-h-[40px] cursor-pointer"
               >
                 {submitting ? 'Approving...' : '✓ Approve Deliverable'}
               </button>
@@ -146,7 +146,7 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
                   rows={4}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Explain clearly what changes or revisions are needed..."
+                  placeholder="Explain clearly what changes or revisions are needed (minimum 10 characters)..."
                   className="w-full bg-[#0B0F19] border border-[#1F2937] rounded-xl p-3 text-xs text-[#F8FAFC] placeholder-[#64748B] focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                 />
               </div>
@@ -154,7 +154,7 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
                 <button
                   type="button"
                   onClick={() => setMode('view')}
-                  className="px-3.5 py-2 bg-[#151D2E] hover:bg-[#1F2937] text-[#94A3B8] hover:text-[#F8FAFC] text-xs font-semibold rounded-xl transition"
+                  className="px-3.5 py-2 bg-[#151D2E] hover:bg-[#1F2937] text-[#94A3B8] hover:text-[#F8FAFC] text-xs font-semibold rounded-xl transition min-h-[40px]"
                 >
                   Cancel
                 </button>
@@ -162,7 +162,7 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
                   type="button"
                   disabled={submitting}
                   onClick={handleRequestChanges}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition"
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition min-h-[40px] cursor-pointer"
                 >
                   {submitting ? 'Submitting...' : 'Submit Change Request'}
                 </button>
@@ -174,4 +174,3 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
     </div>
   );
 };
-

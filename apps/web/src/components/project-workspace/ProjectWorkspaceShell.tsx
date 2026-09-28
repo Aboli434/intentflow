@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Project, User } from '@intentflow/types';
 import { apiGetProjectDetail, apiGetMe, apiGetProjectMembers } from '../../lib/api-client';
+import { AppHeader } from '../common/Header';
 import { ProjectWorkspaceHeader } from './ProjectWorkspaceHeader';
 import { ProjectWorkspaceTabs, WorkspaceTabKey } from './ProjectWorkspaceTabs';
 import { ProjectAccessState, AccessStateMode } from './ProjectAccessState';
@@ -19,16 +21,36 @@ interface ProjectWorkspaceShellProps {
 }
 
 export function ProjectWorkspaceShell({ projectId }: ProjectWorkspaceShellProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const initialTab = (searchParams?.get('tab') as WorkspaceTabKey) || 'overview';
+  const [activeTab, setActiveTab] = useState<WorkspaceTabKey>(initialTab);
+
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMode, setErrorMode] = useState<AccessStateMode | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<WorkspaceTabKey>('overview');
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userOrgRole, setUserOrgRole] = useState<string | undefined>(undefined);
   const [userProjectRole, setUserProjectRole] = useState<string | undefined>(undefined);
   const [teamCount, setTeamCount] = useState<number>(0);
+
+  // Synchronize active tab with URL query parameter
+  useEffect(() => {
+    const tabFromUrl = searchParams?.get('tab') as WorkspaceTabKey;
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (newTab: WorkspaceTabKey) => {
+    setActiveTab(newTab);
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', newTab);
+    router.replace(`/projects/${projectId}?${params.toString()}`);
+  };
 
   useEffect(() => {
     loadWorkspace();
@@ -40,17 +62,14 @@ export function ProjectWorkspaceShell({ projectId }: ProjectWorkspaceShellProps)
     setErrorMessage('');
 
     try {
-      // 1. Fetch Current Authenticated User & Org Memberships
       const meData = await apiGetMe().catch(() => null);
       if (meData) {
         setCurrentUser(meData.user);
       }
 
-      // 2. Fetch Project Details
       const proj = await apiGetProjectDetail(projectId);
       setProject(proj);
 
-      // 3. Resolve User's Org Role & Project Role
       if (meData) {
         const orgMem = meData.memberships.find((m) => m.organizationId === proj.organizationId);
         if (!orgMem) {
@@ -60,7 +79,6 @@ export function ProjectWorkspaceShell({ projectId }: ProjectWorkspaceShellProps)
         }
         setUserOrgRole(orgMem.role);
 
-        // Fetch explicit project members list to find projectRole
         const pMembers = await apiGetProjectMembers(projectId).catch(() => []);
         setTeamCount(pMembers.length);
 
@@ -69,10 +87,8 @@ export function ProjectWorkspaceShell({ projectId }: ProjectWorkspaceShellProps)
         if (myPMember) {
           setUserProjectRole(myPMember.projectRole);
         } else if (orgMem.role === 'admin') {
-          // Org admins without explicit project member record still have admin visibility
           setUserProjectRole(undefined);
         } else {
-          // Non-admin org member not assigned to project team
           setErrorMode('not_assigned');
           setErrorMessage('You are a member of this organization but have not been assigned to this project team.');
           return;
@@ -106,14 +122,15 @@ export function ProjectWorkspaceShell({ projectId }: ProjectWorkspaceShellProps)
   }
 
   const isClientRole = userProjectRole === 'client';
-  const isManagerRole = userOrgRole === 'admin' || userProjectRole === 'manager';
   const isDeveloperRole = userProjectRole === 'developer' || (!isClientRole && userProjectRole !== 'viewer');
-
   const membersList = project.members ? (project.members.map((m) => m.user).filter(Boolean) as User[]) : [];
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0B0F19] text-[#F8FAFC] selection:bg-indigo-600 selection:text-white pb-16">
-      {/* Workspace Header */}
+      {/* Global Header */}
+      <AppHeader user={currentUser} userRole={userOrgRole} />
+
+      {/* Workspace Context Header */}
       <ProjectWorkspaceHeader
         project={project}
         userRole={userOrgRole}
@@ -124,22 +141,22 @@ export function ProjectWorkspaceShell({ projectId }: ProjectWorkspaceShellProps)
       {/* Workspace Tabs Navigation */}
       <ProjectWorkspaceTabs
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab)}
+        onTabChange={handleTabChange}
       />
 
-      {/* Main Workspace View Content */}
+      {/* Main Workspace Content View */}
       <main className="mx-auto flex-1 w-full max-w-7xl p-4 sm:p-6">
         {activeTab === 'overview' ? (
           <ProjectWorkspaceOverview
             project={project}
             userRole={userOrgRole}
             projectRole={userProjectRole}
-            onNavigateTab={(tab) => setActiveTab(tab)}
+            onNavigateTab={handleTabChange}
           />
         ) : activeTab === 'conversations' ? (
           <ConversationView
             projectId={project.id}
-            onNavigateToWorkTab={() => setActiveTab('work')}
+            onNavigateToWorkTab={() => handleTabChange('work')}
           />
         ) : activeTab === 'work' ? (
           <WorkView
