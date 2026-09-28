@@ -62,9 +62,10 @@ export async function notificationRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/notifications/:notificationId/read
+   * PATCH /api/notifications/:notificationId/read
    * Mark a single notification as read (enforces ownership)
    */
-  app.post('/notifications/:notificationId/read', async (request: AuthenticatedRequest, reply) => {
+  const markReadHandler = async (request: AuthenticatedRequest, reply: any) => {
     try {
       const { notificationId } = request.params as { notificationId: string };
       const user = request.user!;
@@ -75,13 +76,16 @@ export async function notificationRoutes(app: FastifyInstance) {
         data: updated,
       });
     } catch (err: any) {
-      if (err.message?.includes('not found')) {
+      if (err.message?.includes('not found') || err.message?.includes('access denied')) {
         return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: err.message } });
       }
       console.error('Error marking notification read:', err);
       return reply.status(500).send({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
     }
-  });
+  };
+
+  app.post('/notifications/:notificationId/read', markReadHandler);
+  app.patch('/notifications/:notificationId/read', markReadHandler);
 
   /**
    * POST /api/notifications/read-all

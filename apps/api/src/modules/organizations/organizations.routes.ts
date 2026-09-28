@@ -377,7 +377,7 @@ export async function organizationRoutes(app: FastifyInstance) {
     return reply.send({ success: true, message: 'Member removed successfully' });
   });
 
-  // GET /api/organizations/:organizationId/invitations — List pending invitations (Policy: org:invitation_view)
+  // GET /api/organizations/:organizationId/invitations — List active invitations (Policy: org:invitation_view)
   app.get('/:organizationId/invitations', async (request: AuthenticatedRequest, reply) => {
     const { organizationId } = request.params as { organizationId: string };
     const user = request.user!;
@@ -401,7 +401,11 @@ export async function organizationRoutes(app: FastifyInstance) {
       .where(
         and(
           eq(organizationInvitations.organizationId, organizationId),
-          eq(organizationInvitations.status, 'pending')
+          or(
+            eq(organizationInvitations.status, 'pending'),
+            eq(organizationInvitations.status, 'sent'),
+            eq(organizationInvitations.status, 'delivery_failed')
+          )
         )
       )
       .orderBy(desc(organizationInvitations.createdAt));
@@ -415,6 +419,10 @@ export async function organizationRoutes(app: FastifyInstance) {
       role: inv.role,
       status: inv.status,
       expiresAt: inv.expiresAt.toISOString(),
+      sentAt: inv.sentAt ? inv.sentAt.toISOString() : undefined,
+      deliveryStatus: inv.deliveryStatus || undefined,
+      lastDeliveryAttempt: inv.lastDeliveryAttempt ? inv.lastDeliveryAttempt.toISOString() : undefined,
+      failureReason: inv.failureReason || undefined,
       createdAt: inv.createdAt.toISOString(),
       inviterName: inviter?.name,
       isExpired: new Date() > inv.expiresAt,
@@ -503,7 +511,10 @@ export async function organizationRoutes(app: FastifyInstance) {
           and(
             eq(organizationInvitations.organizationId, organizationId),
             eq(organizationInvitations.email, targetEmail),
-            eq(organizationInvitations.status, 'pending')
+            or(
+              eq(organizationInvitations.status, 'pending'),
+              eq(organizationInvitations.status, 'sent')
+            )
           )
         )
         .limit(1);
@@ -524,7 +535,10 @@ export async function organizationRoutes(app: FastifyInstance) {
           and(
             eq(organizationInvitations.organizationId, organizationId),
             eq(organizationInvitations.phone, targetPhone),
-            eq(organizationInvitations.status, 'pending')
+            or(
+              eq(organizationInvitations.status, 'pending'),
+              eq(organizationInvitations.status, 'sent')
+            )
           )
         )
         .limit(1);
@@ -555,33 +569,171 @@ export async function organizationRoutes(app: FastifyInstance) {
       })
       .returning();
 
-    // 3. Dispatch Delivery Abstraction (Stubs Resend/Twilio/WhatsApp)
+    // 3. Dispatch Delivery Abstraction (Resend/SendGrid/Twilio/Dev)
     const orgRes = await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);
     const orgName = orgRes[0]?.name || 'IntentFlow Workspace';
     const targetDestination = targetEmail || targetPhone || '';
 
     const deliveryService = new InvitationDeliveryService();
-    await deliveryService.dispatchInvitation({
+    const deliveryResult = await deliveryService.dispatchInvitation({
       destination: targetDestination,
       invitationUrl: `${process.env.APP_URL || 'http://localhost:3000'}/invite/${token}`,
       organizationName: orgName,
       role,
+      inviterName: user.name,
       invitationMethod,
+      expiresAt,
     });
+
+    // 4. Update delivery metadata on record
+    const [updatedInv] = await db
+      .update(organizationInvitations)
+      .set({
+        status: deliveryResult.status,
+        sentAt: deliveryResult.success ? deliveryResult.timestamp : null,
+        deliveryStatus: deliveryResult.status,
+        lastDeliveryAttempt: deliveryResult.timestamp,
+        failureReason: deliveryResult.failureReason || null,
+      })
+      .where(eq(organizationInvitations.id, invitation.id))
+      .returning();
 
     return reply.status(201).send({
       success: true,
       data: {
-        id: invitation.id,
-        organizationId: invitation.organizationId,
-        email: invitation.email || undefined,
-        phone: invitation.phone || undefined,
-        invitationMethod: invitation.invitationMethod,
-        role: invitation.role,
-        status: invitation.status,
-        expiresAt: invitation.expiresAt.toISOString(),
-        createdAt: invitation.createdAt.toISOString(),
+        id: updatedInv.id,
+        organizationId: updatedInv.organizationId,
+        email: updatedInv.email || undefined,
+        phone: updatedInv.phone || undefined,
+        invitationMethod: updatedInv.invitationMethod,
+        role: updatedInv.role,
+        status: updatedInv.status,
+        sentAt: updatedInv.sentAt ? updatedInv.sentAt.toISOString() : undefined,
+        deliveryStatus: updatedInv.deliveryStatus || undefined,
+        lastDeliveryAttempt: updatedInv.lastDeliveryAttempt ? updatedInv.lastDeliveryAttempt.toISOString() : undefined,
+        failureReason: updatedInv.failureReason || undefined,
+        expiresAt: updatedInv.expiresAt.toISOString(),
+        createdAt: updatedInv.createdAt.toISOString(),
       },
     });
+  });
+
+  // POST /api/organizations/:organizationId/invitations/:invitationId/resend — Resend invitation (Policy: org:invitation_create)
+  app.post('/:organizationId/invitations/:invitationId/resend', async (request: AuthenticatedRequest, reply) => {
+    const { organizationId, invitationId } = request.params as { organizationId: string; invitationId: string };
+    const user = request.user!;
+
+    const policy = await enforcePolicy(user.id, organizationId, 'org:invitation_create');
+    if (!policy.allowed) {
+      return reply.status(403).send({
+        success: false,
+        error: { code: 'FORBIDDEN', message: policy.reason },
+      });
+    }
+
+    const db = getDb();
+    const [targetInv] = await db
+      .select()
+      .from(organizationInvitations)
+      .where(
+        and(
+          eq(organizationInvitations.id, invitationId),
+          eq(organizationInvitations.organizationId, organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!targetInv) {
+      return reply.status(404).send({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Invitation record not found' },
+      });
+    }
+
+    const orgRes = await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1);
+    const orgName = orgRes[0]?.name || 'IntentFlow Workspace';
+    const targetDestination = targetInv.email || targetInv.phone || '';
+
+    const deliveryService = new InvitationDeliveryService();
+    const deliveryResult = await deliveryService.dispatchInvitation({
+      destination: targetDestination,
+      invitationUrl: `${process.env.APP_URL || 'http://localhost:3000'}/invite/${targetInv.token}`,
+      organizationName: orgName,
+      role: targetInv.role,
+      inviterName: user.name,
+      invitationMethod: targetInv.invitationMethod as 'email' | 'sms',
+      expiresAt: targetInv.expiresAt,
+    });
+
+    const [updatedInv] = await db
+      .update(organizationInvitations)
+      .set({
+        status: deliveryResult.status,
+        sentAt: deliveryResult.success ? deliveryResult.timestamp : targetInv.sentAt,
+        deliveryStatus: deliveryResult.status,
+        lastDeliveryAttempt: deliveryResult.timestamp,
+        failureReason: deliveryResult.failureReason || null,
+      })
+      .where(eq(organizationInvitations.id, invitationId))
+      .returning();
+
+    return reply.send({
+      success: true,
+      data: {
+        id: updatedInv.id,
+        organizationId: updatedInv.organizationId,
+        email: updatedInv.email || undefined,
+        phone: updatedInv.phone || undefined,
+        invitationMethod: updatedInv.invitationMethod,
+        role: updatedInv.role,
+        status: updatedInv.status,
+        sentAt: updatedInv.sentAt ? updatedInv.sentAt.toISOString() : undefined,
+        deliveryStatus: updatedInv.deliveryStatus || undefined,
+        lastDeliveryAttempt: updatedInv.lastDeliveryAttempt ? updatedInv.lastDeliveryAttempt.toISOString() : undefined,
+        failureReason: updatedInv.failureReason || undefined,
+        expiresAt: updatedInv.expiresAt.toISOString(),
+        createdAt: updatedInv.createdAt.toISOString(),
+      },
+    });
+  });
+
+  // DELETE /api/organizations/:organizationId/invitations/:invitationId — Cancel invitation (Policy: org:invitation_cancel)
+  app.delete('/:organizationId/invitations/:invitationId', async (request: AuthenticatedRequest, reply) => {
+    const { organizationId, invitationId } = request.params as { organizationId: string; invitationId: string };
+    const user = request.user!;
+
+    const policy = await enforcePolicy(user.id, organizationId, 'org:invitation_cancel');
+    if (!policy.allowed) {
+      return reply.status(403).send({
+        success: false,
+        error: { code: 'FORBIDDEN', message: policy.reason },
+      });
+    }
+
+    const db = getDb();
+    const [targetInv] = await db
+      .select()
+      .from(organizationInvitations)
+      .where(
+        and(
+          eq(organizationInvitations.id, invitationId),
+          eq(organizationInvitations.organizationId, organizationId)
+        )
+      )
+      .limit(1);
+
+    if (!targetInv) {
+      return reply.status(404).send({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Invitation record not found' },
+      });
+    }
+
+    await db
+      .update(organizationInvitations)
+      .set({ status: 'cancelled' })
+      .where(eq(organizationInvitations.id, invitationId));
+
+    return reply.send({ success: true, message: 'Invitation cancelled' });
   });
 }

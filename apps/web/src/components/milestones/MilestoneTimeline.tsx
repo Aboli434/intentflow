@@ -36,45 +36,45 @@ export const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
       case 'in_progress':
-        return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40';
+        return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
       case 'review':
-        return 'bg-purple-500/20 text-purple-400 border-purple-500/40';
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
       case 'blocked':
-        return 'bg-red-500/20 text-red-400 border-red-500/40';
+        return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
       default:
-        return 'bg-slate-800 text-slate-400 border-slate-700';
+        return 'bg-[#0B0F19]/60 text-[#94A3B8] border-[#1F2937]';
     }
   };
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 mb-6">
-      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+    <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-4 mb-6 shadow-md">
+      <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-wider mb-3">
         🚩 Project Delivery Milestones
       </h3>
-      <div className="flex items-center gap-3 overflow-x-auto pb-2">
+      <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
         {milestones.map((m, idx) => (
           <React.Fragment key={m.id}>
-            {idx > 0 && <div className="h-0.5 w-6 bg-slate-800 shrink-0" />}
+            {idx > 0 && <div className="h-0.5 w-6 bg-[#1F2937] shrink-0" />}
             <div
-              className={`flex flex-col p-3 rounded-lg border min-w-[180px] max-w-[220px] shrink-0 transition ${getStatusColor(
+              className={`flex flex-col p-3.5 rounded-xl border min-w-[180px] max-w-[220px] shrink-0 transition ${getStatusColor(
                 m.status
               )}`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-xs truncate text-white">{m.title}</span>
+                <span className="font-extrabold text-xs truncate text-[#F8FAFC]">{m.title}</span>
                 <span className="text-xs font-mono font-bold">{getStatusIcon(m.status)}</span>
               </div>
               {m.description && (
-                <p className="text-[11px] text-slate-400 line-clamp-2 mt-1">{m.description}</p>
+                <p className="text-[11px] text-[#94A3B8] line-clamp-2 mt-1 font-normal">{m.description}</p>
               )}
 
               {isDeveloper && onStatusChange && (
                 <select
                   value={m.status}
                   onChange={(e) => onStatusChange(m.id, e.target.value)}
-                  className="mt-2 bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-[10px] text-slate-300 focus:outline-none"
+                  className="mt-2 bg-[#111827] border border-[#1F2937] rounded-lg px-2 py-1 text-[10px] font-semibold text-[#F8FAFC] focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
                   <option value="upcoming">○ Upcoming</option>
                   <option value="in_progress">● In Progress</option>
@@ -90,3 +90,4 @@ export const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
     </div>
   );
 };
+

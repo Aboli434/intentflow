@@ -138,12 +138,14 @@ export default function SettingsPage() {
     }
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+
   const handleCancelInvite = async (invitationId: string) => {
     setActionLoadingId(invitationId);
     setSuccessMsg(null);
     setErrorMsg(null);
     try {
-      await apiCancelInvitation(invitationId);
+      await apiCancelInvitation(selectedOrgId, invitationId);
       setSuccessMsg('Invitation cancelled.');
       await loadOrgData(selectedOrgId);
     } catch (err: any) {
@@ -158,13 +160,45 @@ export default function SettingsPage() {
     setSuccessMsg(null);
     setErrorMsg(null);
     try {
-      await apiResendInvitation(invitationId);
-      setSuccessMsg('Invitation token renewed and queued for resend.');
+      await apiResendInvitation(selectedOrgId, invitationId);
+      setSuccessMsg('Invitation queued for re-delivery.');
       await loadOrgData(selectedOrgId);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to resend invitation');
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const filteredMembers = members.filter((m) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (m.user?.name && m.user.name.toLowerCase().includes(q)) ||
+      (m.user?.email && m.user.email.toLowerCase().includes(q)) ||
+      m.role.toLowerCase().includes(q)
+    );
+  });
+
+  const filteredInvitations = invitations.filter((inv) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (inv.email && inv.email.toLowerCase().includes(q)) ||
+      (inv.phone && inv.phone.toLowerCase().includes(q)) ||
+      inv.role.toLowerCase().includes(q) ||
+      inv.status.toLowerCase().includes(q)
+    );
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'sent':
+        return <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/30">✓ Sent</span>;
+      case 'delivery_failed':
+        return <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/15 px-2 py-0.5 rounded border border-rose-500/30">✕ Delivery Failed</span>;
+      default:
+        return <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30">⏳ Pending</span>;
     }
   };
 
@@ -210,13 +244,13 @@ export default function SettingsPage() {
   const getRoleBadgeStyle = (role: string) => {
     switch (role.toLowerCase()) {
       case 'admin':
-        return 'bg-purple-50 text-purple-700 border border-purple-200';
+        return 'bg-purple-500/15 text-purple-300 border border-purple-500/30';
       case 'developer':
-        return 'bg-sky-50 text-sky-700 border border-sky-200';
+        return 'bg-sky-500/15 text-sky-300 border border-sky-500/30';
       case 'client':
-        return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+        return 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
       default:
-        return 'bg-slate-100 text-slate-700 border border-slate-200';
+        return 'bg-slate-800 text-slate-300 border border-slate-700';
     }
   };
 
@@ -232,51 +266,51 @@ export default function SettingsPage() {
 
   if (loadingOrgs) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-slate-600">
-          <svg className="animate-spin h-5 w-5 text-indigo-600" viewBox="0 0 24 24" fill="none">
+      <div className="min-h-screen bg-[#0B0F19] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-slate-400">
+          <svg className="animate-spin h-5 w-5 text-indigo-500" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
-          <span className="text-sm font-medium">Loading organization settings...</span>
+          <span className="text-xs font-medium">Loading organization settings...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#0B0F19] text-[#F8FAFC] selection:bg-indigo-600 selection:text-white pb-16">
       {/* Header Bar */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur-md px-6 py-4 shadow-sm">
+      <header className="sticky top-0 z-30 border-b border-[#1F2937] bg-[#111827]/90 backdrop-blur-md px-6 py-4 shadow-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-indigo-400 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
               Back to Dashboard
             </Link>
-            <div className="h-4 w-px bg-slate-200" />
+            <div className="h-4 w-px bg-slate-800" />
             <div>
-              <h1 className="text-lg font-extrabold text-slate-900 tracking-tight">Team Management</h1>
-              <p className="text-xs text-slate-500">Manage workspace members and multi-channel team invitations</p>
+              <h1 className="text-lg font-extrabold text-slate-100 tracking-tight">Team Management</h1>
+              <p className="text-xs text-slate-400">Manage workspace members and multi-channel team invitations</p>
             </div>
           </div>
 
           {/* Organization Selector */}
           {organizations.length > 0 && (
             <div className="flex items-center gap-2">
-              <label htmlFor="org-select" className="text-xs text-slate-500 font-semibold hidden sm:inline">
+              <label htmlFor="org-select" className="text-xs text-slate-400 font-semibold hidden sm:inline">
                 Workspace:
               </label>
               <select
                 id="org-select"
                 value={selectedOrgId}
                 onChange={(e) => setSelectedOrgId(e.target.value)}
-                className="rounded-xl border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none cursor-pointer shadow-sm"
+                className="rounded-xl border border-[#1F2937] bg-[#0B0F19] px-3.5 py-1.5 text-xs font-bold text-slate-100 focus:border-indigo-500 focus:outline-none cursor-pointer shadow-sm"
               >
                 {organizations.map((org) => (
                   <option key={org.id} value={org.id}>
@@ -294,8 +328,8 @@ export default function SettingsPage() {
         
         {/* Global Feedback Banners */}
         {successMsg && (
-          <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 shadow-sm">
-            <svg className="w-4 h-4 shrink-0 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs font-semibold text-emerald-300 shadow-md">
+            <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
             </svg>
             <span>{successMsg}</span>
@@ -303,8 +337,8 @@ export default function SettingsPage() {
         )}
 
         {errorMsg && (
-          <div className="flex items-center gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800 shadow-sm">
-            <svg className="w-4 h-4 shrink-0 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs font-semibold text-rose-300 shadow-md">
+            <svg className="w-4 h-4 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>{errorMsg}</span>
@@ -315,21 +349,21 @@ export default function SettingsPage() {
           
           {/* LEFT / MAIN COLUMN: Invite Team Member */}
           <div className="lg:col-span-6 space-y-6">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+            <div className="rounded-2xl border border-[#1F2937] bg-[#111827] p-6 shadow-md">
+              <div className="flex items-center gap-3 border-b border-[#1F2937] pb-4 mb-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-950 text-indigo-400 border border-indigo-500/30">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-slate-900">Invite Team Member</h2>
-                  <p className="text-xs text-slate-500">Add clients, developers, or administrators to your organization.</p>
+                  <h2 className="text-base font-extrabold text-slate-100">Invite Team Member</h2>
+                  <p className="text-xs text-slate-400">Add clients, developers, or administrators to your organization.</p>
                 </div>
               </div>
 
               {!isAdmin && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300">
                   <p className="font-bold">Admin Access Required</p>
                   <p className="mt-1 opacity-90">Only organization admins can invite new team members.</p>
                 </div>
@@ -339,15 +373,15 @@ export default function SettingsPage() {
                 <form onSubmit={handleInvite} className="space-y-5">
                   {/* Invitation Method Selector */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Invitation Method</label>
-                    <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+                    <label className="block text-xs font-bold text-slate-300 mb-2">Invitation Method</label>
+                    <div className="flex rounded-xl bg-[#0B0F19] p-1 border border-[#1F2937]">
                       <button
                         type="button"
                         onClick={() => setInviteMethod('email')}
                         className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition-all ${
                           inviteMethod === 'email'
-                            ? 'bg-white text-indigo-600 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-400 hover:text-slate-200'
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -360,8 +394,8 @@ export default function SettingsPage() {
                         onClick={() => setInviteMethod('sms')}
                         className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition-all ${
                           inviteMethod === 'sms'
-                            ? 'bg-white text-indigo-600 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-400 hover:text-slate-200'
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -375,7 +409,7 @@ export default function SettingsPage() {
                   {/* Contact Input */}
                   {inviteMethod === 'email' ? (
                     <div>
-                      <label htmlFor="invite-email" className="block text-xs font-bold text-slate-700 mb-1.5">
+                      <label htmlFor="invite-email" className="block text-xs font-bold text-slate-300 mb-1.5">
                         Email Address
                       </label>
                       <input
@@ -385,19 +419,19 @@ export default function SettingsPage() {
                         value={inviteEmail}
                         onChange={(e) => setInviteEmail(e.target.value)}
                         placeholder="name@company.com"
-                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none transition-all"
+                        className="w-full rounded-xl border border-[#1F2937] bg-[#0B0F19] px-4 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all"
                       />
                     </div>
                   ) : (
                     <div>
-                      <label htmlFor="invite-phone" className="block text-xs font-bold text-slate-700 mb-1.5">
+                      <label htmlFor="invite-phone" className="block text-xs font-bold text-slate-300 mb-1.5">
                         Mobile Number
                       </label>
                       <div className="flex gap-2">
                         <select
                           value={countryCode}
                           onChange={(e) => setCountryCode(e.target.value)}
-                          className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 focus:border-indigo-600 focus:outline-none cursor-pointer"
+                          className="rounded-xl border border-[#1F2937] bg-[#0B0F19] px-3 py-2.5 text-xs font-bold text-slate-200 focus:border-indigo-500 focus:outline-none cursor-pointer"
                         >
                           <option value="+91">🇮🇳 +91 (India)</option>
                           <option value="+1">🇺🇸 +1 (US/CA)</option>
@@ -412,38 +446,38 @@ export default function SettingsPage() {
                           value={invitePhone}
                           onChange={(e) => setInvitePhone(e.target.value)}
                           placeholder="9876543210"
-                          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none transition-all"
+                          className="flex-1 rounded-xl border border-[#1F2937] bg-[#0B0F19] px-4 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all"
                         />
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1">E.164 normalized format: {countryCode} {invitePhone.trim() || 'XXXXXXXXXX'}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">E.164 normalized format: {countryCode} {invitePhone.trim() || 'XXXXXXXXXX'}</p>
                     </div>
                   )}
 
                   {/* Role Selection & Description */}
                   <div>
-                    <label htmlFor="invite-role" className="block text-xs font-bold text-slate-700 mb-1.5">
+                    <label htmlFor="invite-role" className="block text-xs font-bold text-slate-300 mb-1.5">
                       Organization Role
                     </label>
                     <select
                       id="invite-role"
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value as any)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none transition-all cursor-pointer font-semibold"
+                      className="w-full rounded-xl border border-[#1F2937] bg-[#0B0F19] px-4 py-2.5 text-xs text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer font-bold"
                     >
                       <option value="client">Client</option>
                       <option value="developer">Developer</option>
                       <option value="admin">Admin</option>
                     </select>
 
-                    <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                    <div className="mt-2.5 rounded-xl border border-[#1F2937] bg-[#0B0F19] p-3 text-xs text-slate-400">
                       {inviteRole === 'client' && (
-                        <p><strong className="text-slate-800">Client:</strong> Can view assigned projects, review deliverables and approve project completion.</p>
+                        <p><strong className="text-slate-200">Client:</strong> Can view assigned projects, review deliverables and approve project completion.</p>
                       )}
                       {inviteRole === 'developer' && (
-                        <p><strong className="text-slate-800">Developer:</strong> Can execute work, manage deliverables and project progress.</p>
+                        <p><strong className="text-slate-200">Developer:</strong> Can execute work, manage deliverables and project progress.</p>
                       )}
                       {inviteRole === 'admin' && (
-                        <p><strong className="text-slate-800">Admin:</strong> Can manage organization members, projects and organization settings.</p>
+                        <p><strong className="text-slate-200">Admin:</strong> Can manage organization members, projects and organization settings.</p>
                       )}
                     </div>
                   </div>
@@ -452,7 +486,7 @@ export default function SettingsPage() {
                     <button
                       type="submit"
                       disabled={inviting}
-                      className="inline-flex items-center justify-center gap-2 w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 px-6 py-2.5 text-xs font-bold text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center justify-center gap-2 w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 px-6 py-2.5 text-xs font-bold text-white shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed min-h-[42px]"
                     >
                       {inviting ? (
                         <>
@@ -474,39 +508,41 @@ export default function SettingsPage() {
 
           {/* RIGHT COLUMN: Organization Members */}
           <div className="lg:col-span-6 space-y-6">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+            <div className="rounded-2xl border border-[#1F2937] bg-[#111827] p-6 shadow-md">
+              <div className="flex items-center justify-between border-b border-[#1F2937] pb-4 mb-4">
                 <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
-                  <h2 className="text-sm font-bold text-slate-900">Organization Members</h2>
+                  <h2 className="text-sm font-extrabold text-slate-100">Organization Members</h2>
                 </div>
-                <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                <span className="text-[11px] font-mono font-bold text-indigo-300 bg-indigo-500/15 px-2.5 py-0.5 rounded-full border border-indigo-500/30">
                   {members.length}
                 </span>
               </div>
 
               {loadingData ? (
-                <div className="py-8 text-center text-xs text-slate-500">Loading members...</div>
-              ) : members.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400">No team members yet.</div>
+                <div className="py-8 text-center text-xs text-slate-400">Loading members...</div>
+              ) : filteredMembers.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500">
+                  {searchQuery ? 'No members match your search.' : 'No team members yet.'}
+                </div>
               ) : (
                 <div className="space-y-3">
-                  {members.map((m) => (
+                  {filteredMembers.map((m) => (
                     <div
                       key={m.id}
-                      className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-100/50 transition-colors"
+                      className="flex items-center justify-between p-3.5 rounded-xl border border-[#1F2937] bg-[#0B0F19]/60 hover:bg-[#151D2E] transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 border border-indigo-200">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-950 text-xs font-bold text-indigo-300 border border-indigo-500/30 font-mono">
                           {getInitials(m.user?.name, m.user?.email)}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 truncate">
+                          <p className="text-xs font-bold text-slate-100 truncate">
                             {m.user?.name || 'Unnamed Member'}
                           </p>
-                          <p className="text-[11px] text-slate-500 font-mono truncate">{m.user?.email}</p>
+                          <p className="text-[11px] text-slate-400 font-mono truncate">{m.user?.email}</p>
                         </div>
                       </div>
 
@@ -516,14 +552,14 @@ export default function SettingsPage() {
                             value={m.role}
                             disabled={actionLoadingId === m.id}
                             onChange={(e) => handleMemberRoleChange(m.id, e.target.value as UserRole)}
-                            className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-md border cursor-pointer ${getRoleBadgeStyle(m.role)}`}
+                            className={`text-[10px] uppercase font-mono font-bold tracking-wider px-2 py-1 rounded-md border cursor-pointer ${getRoleBadgeStyle(m.role)}`}
                           >
                             <option value="client">Client</option>
                             <option value="developer">Developer</option>
                             <option value="admin">Admin</option>
                           </select>
                         ) : (
-                          <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md ${getRoleBadgeStyle(m.role)}`}>
+                          <span className={`text-[10px] uppercase font-mono font-bold tracking-wider px-2 py-0.5 rounded-md ${getRoleBadgeStyle(m.role)}`}>
                             {m.role}
                           </span>
                         )}
@@ -532,7 +568,7 @@ export default function SettingsPage() {
                           <button
                             onClick={() => handleRemoveMember(m.id)}
                             disabled={actionLoadingId === m.id}
-                            className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                            className="p-1 text-slate-500 hover:text-rose-400 transition-colors"
                             title="Remove Member"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -549,47 +585,78 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* BOTTOM SECTION: Pending Invitations */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+        {/* BOTTOM SECTION: Pending & Sent Invitations */}
+        <div className="rounded-2xl border border-[#1F2937] bg-[#111827] p-6 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#1F2937] pb-4 mb-4 gap-3">
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <h2 className="text-base font-bold text-slate-900">Pending Invitations</h2>
+              <h2 className="text-base font-extrabold text-slate-100">Invitations</h2>
+              <span className="text-[11px] font-mono font-bold text-amber-300 bg-amber-500/15 px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                {invitations.length}
+              </span>
             </div>
-            <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-100">
-              {invitations.length}
-            </span>
+
+            {/* Search filter input */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search member or invitation..."
+                className="w-full rounded-xl border border-[#1F2937] bg-[#0B0F19] pl-3 pr-8 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-200"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           {loadingData ? (
-            <div className="py-8 text-center text-xs text-slate-500">Loading invitations...</div>
-          ) : invitations.length === 0 ? (
-            <div className="py-8 text-center text-xs text-slate-400">No pending invitations found for this workspace.</div>
+            <div className="py-8 text-center text-xs text-slate-400">Loading invitations...</div>
+          ) : filteredInvitations.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-500">
+              {searchQuery ? 'No invitations match your search query.' : 'No active invitations found for this workspace.'}
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {invitations.map((inv) => (
+              {filteredInvitations.map((inv) => (
                 <div
                   key={inv.id}
-                  className="flex flex-col justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3"
+                  className="flex flex-col justify-between p-4 rounded-xl border border-[#1F2937] bg-[#0B0F19]/60 space-y-3"
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="uppercase text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                      <span className="uppercase text-[9px] font-mono font-extrabold tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
                         {inv.invitationMethod === 'sms' ? 'SMS / Mobile' : 'Email'}
                       </span>
-                      <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md ${getRoleBadgeStyle(inv.role)}`}>
-                        {inv.role}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {getStatusBadge(inv.status)}
+                        <span className={`text-[10px] uppercase font-mono font-bold tracking-wider px-2 py-0.5 rounded-md ${getRoleBadgeStyle(inv.role)}`}>
+                          {inv.role}
+                        </span>
+                      </div>
                     </div>
 
-                    <p className="text-xs font-bold text-slate-900 font-mono pt-1">
+                    <p className="text-xs font-bold text-slate-100 font-mono pt-1">
                       {inv.invitationMethod === 'sms' ? maskPhone(inv.phone) : inv.email}
                     </p>
+
+                    {inv.failureReason && (
+                      <div className="text-[10px] text-rose-400 bg-rose-500/10 p-2 rounded-lg border border-rose-500/20 font-mono leading-tight">
+                        Reason: {inv.failureReason}
+                      </div>
+                    )}
+
                     <p className="text-[11px] text-slate-500">
                       {inv.isExpired ? (
-                        <span className="text-rose-600 font-semibold">Expired</span>
+                        <span className="text-rose-400 font-semibold">Expired</span>
                       ) : (
                         `Expires ${new Date(inv.expiresAt).toLocaleDateString()}`
                       )}
@@ -597,18 +664,18 @@ export default function SettingsPage() {
                   </div>
 
                   {isAdmin && (
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
+                    <div className="flex items-center gap-2 pt-2 border-t border-[#1F2937]">
                       <button
                         onClick={() => handleResendInvite(inv.id)}
                         disabled={actionLoadingId === inv.id}
-                        className="flex-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 py-1.5 text-xs font-bold transition-all disabled:opacity-50"
+                        className="flex-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 py-1.5 text-xs font-bold transition-all disabled:opacity-50 min-h-[36px]"
                       >
-                        Resend
+                        {actionLoadingId === inv.id ? '...' : inv.status === 'delivery_failed' ? 'Retry' : 'Resend'}
                       </button>
                       <button
                         onClick={() => handleCancelInvite(inv.id)}
                         disabled={actionLoadingId === inv.id}
-                        className="flex-1 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 py-1.5 text-xs font-bold transition-all disabled:opacity-50"
+                        className="flex-1 rounded-lg bg-[#151D2E] hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-slate-700 py-1.5 text-xs font-bold transition-all disabled:opacity-50 min-h-[36px]"
                       >
                         Cancel
                       </button>

@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useState, useRef } from 'react';
 import {
   apiGetProjectConversations,
@@ -12,10 +10,13 @@ import {
   apiAnalyzeIntent,
   getAttachmentDownloadUrl,
   connectConversationWebSocket,
+  WsConnectionState,
   apiGetMe,
 } from '@/lib/api-client';
 import { Conversation, Message, MessageAttachment, User, Intent } from '@intentflow/types';
 import { IntentPanel } from '../intents/IntentPanel';
+import { EmptyState } from '../common/EmptyState';
+import { formatRelativeTime } from '@/lib/notification-utils';
 
 interface ConversationViewProps {
   projectId: string;
@@ -26,10 +27,13 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
   const [user, setUser] = useState<User | null>(null);
   const [conversations, setConversations] = useState<(Conversation & { unread?: boolean })[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<(Message & { sendStatus?: 'sending' | 'failed' | 'sent' })[]>([]);
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
-  const [isWsConnected, setIsWsConnected] = useState(false);
+  const [wsState, setWsState] = useState<WsConnectionState>('connecting');
+  const [showMobileChat, setShowMobileChat] = useState(false);
+  const [threadSearch, setThreadSearch] = useState('');
+  const [hasUnreadBelow, setHasUnreadBelow] = useState(false);
 
   // Form states
   const [newTitle, setNewTitle] = useState('');
@@ -40,6 +44,7 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
   const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,6 +69,21 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
     }
   };
 
+  // Scroll tracking to show floating 'new messages' pill
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    if (isNearBottom) {
+      setHasUnreadBelow(false);
+    }
+  };
+
+  const scrollToBottom = (smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    setHasUnreadBelow(false);
+  };
+
   // Load Messages & Setup WebSocket when Active Conversation changes
   useEffect(() => {
     if (!activeConvId) return;
@@ -71,8 +91,9 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
     setLoadingMsgs(true);
     apiGetConversationMessages(activeConvId, 50)
       .then((res) => {
-        setMessages(res.data);
+        setMessages(res.data.map((m) => ({ ...m, sendStatus: 'sent' })));
         apiMarkConversationRead(activeConvId).catch(() => {});
+        setTimeout(() => scrollToBottom(false), 50);
       })
       .catch((err) => setErrorMsg(err instanceof Error ? err.message : 'Failed to load messages'))
       .finally(() => setLoadingMsgs(false));
@@ -88,7 +109,7 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
       })
       .catch(() => setCurrentIntent(null));
 
-    // Connect WebSocket
+    // Connect WebSocket with robust auto-reconnect backoff
     const cleanupWs = connectConversationWebSocket(
       activeConvId,
       (event) => {
@@ -96,9 +117,19 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
           if (event.type === 'conversation.message.created') {
             setMessages((prev) => {
               if (prev.some((m) => m.id === event.message.id)) return prev;
-              return [...prev, event.message];
+              return [...prev, { ...event.message, sendStatus: 'sent' }];
             });
             loadConversations();
+
+            const container = messagesContainerRef.current;
+            if (container) {
+              const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+              if (isNearBottom) {
+                setTimeout(() => scrollToBottom(true), 50);
+              } else {
+                setHasUnreadBelow(true);
+              }
+            }
           } else if (event.type === 'intent.processing') {
             setIsAnalyzing(true);
           } else if (event.type === 'intent.ready' || event.type === 'intent.updated' || event.type === 'intent.confirmed') {
@@ -110,7 +141,12 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
           }
         }
       },
-      (connected) => setIsWsConnected(connected)
+      (connected) => {
+        setWsState(connected ? 'connected' : 'offline');
+      },
+      (state) => {
+        setWsState(state);
+      }
     );
 
     return () => {
@@ -135,11 +171,6 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
     }
   };
 
-  // Scroll to bottom when messages update
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
   const handleCreateConversation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
@@ -150,38 +181,72 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
       setShowNewModal(false);
       await loadConversations();
       setActiveConvId(created.id);
+      setShowMobileChat(true);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Failed to create conversation');
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSendMessage = async (bodyText: string, attachmentsList: MessageAttachment[], tempMsgId?: string) => {
     if (!activeConvId) return;
-    if (!messageBody.trim() && pendingAttachments.length === 0) return;
+
+    const optId = tempMsgId || `opt_${Date.now()}`;
+    const draftMsg: Message & { sendStatus?: 'sending' | 'failed' | 'sent' } = {
+      id: optId,
+      conversationId: activeConvId,
+      senderId: user?.id || 'temp',
+      sender: user || undefined,
+      body: bodyText,
+      attachments: attachmentsList,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      type: 'text',
+      sendStatus: 'sending',
+    };
+
+    if (!tempMsgId) {
+      setMessages((prev) => [...prev, draftMsg]);
+      setMessageBody('');
+      setPendingAttachments([]);
+      setTimeout(() => scrollToBottom(true), 50);
+    } else {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempMsgId ? { ...m, sendStatus: 'sending' } : m))
+      );
+    }
 
     setSending(true);
     setErrorMsg(null);
+
     try {
-      const attachmentIds = pendingAttachments.map((a) => a.id);
+      const attachmentIds = attachmentsList.map((a) => a.id);
       const sent = await apiSendMessage(activeConvId, {
-        body: messageBody.trim(),
+        body: bodyText,
         attachmentIds,
       });
 
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === sent.id)) return prev;
-        return [...prev, sent];
-      });
-
-      setMessageBody('');
-      setPendingAttachments([]);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === optId ? { ...sent, sendStatus: 'sent' } : m))
+      );
       loadConversations();
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to send message');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to send message. Click retry.');
+      setMessages((prev) =>
+        prev.map((m) => (m.id === optId ? { ...m, sendStatus: 'failed' } : m))
+      );
     } finally {
       setSending(false);
     }
+  };
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!messageBody.trim() && pendingAttachments.length === 0) return;
+    executeSendMessage(messageBody.trim(), pendingAttachments);
+  };
+
+  const handleRetryMessage = (msg: Message & { sendStatus?: 'sending' | 'failed' | 'sent' }) => {
+    executeSendMessage(msg.body, msg.attachments || [], msg.id);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,7 +256,7 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
     setUploading(true);
     setErrorMsg(null);
     try {
-      const att = await apiUploadAttachment(projectId, file);
+      const att = await apiUploadAttachment(file, projectId);
       setPendingAttachments((prev) => [...prev, att]);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Failed to upload attachment');
@@ -201,56 +266,176 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
     }
   };
 
+  const handleSelectConv = (id: string) => {
+    setActiveConvId(id);
+    setShowMobileChat(true);
+  };
+
+  const filteredConvs = conversations.filter((c) => {
+    if (!threadSearch.trim()) return true;
+    return c.title.toLowerCase().includes(threadSearch.toLowerCase().trim());
+  });
+
   const activeConv = conversations.find((c) => c.id === activeConvId);
 
+  const getWsBadge = () => {
+    switch (wsState) {
+      case 'connected':
+        return (
+          <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            ● Live
+          </span>
+        );
+      case 'reconnecting':
+        return (
+          <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 animate-pulse">
+            ● Reconnecting...
+          </span>
+        );
+      case 'connecting':
+        return (
+          <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+            ● Connecting...
+          </span>
+        );
+      default:
+        return (
+          <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+            ● Offline
+          </span>
+        );
+    }
+  };
+
+  if (!loadingConvs && conversations.length === 0) {
+    return (
+      <div className="space-y-4">
+        <EmptyState
+          icon="💬"
+          title="No conversations yet"
+          description="Start a project discussion thread with your team and clients."
+          actionLabel="+ New Conversation"
+          onAction={() => setShowNewModal(true)}
+        />
+
+        {showNewModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-2xl border border-[#1F2937] bg-[#111827] p-6 shadow-2xl space-y-4 text-[#F8FAFC]">
+              <h3 className="text-sm font-extrabold text-[#F8FAFC]">Create Conversation Thread</h3>
+              <form onSubmit={handleCreateConversation} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#94A3B8] mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="e.g. Website Feedback"
+                    className="w-full rounded-xl border border-[#1F2937] bg-[#0B0F19] px-3.5 py-2 text-xs text-[#F8FAFC] placeholder:text-[#64748B] focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewModal(false)}
+                    className="rounded-xl px-3.5 py-1.5 text-xs font-semibold text-[#94A3B8] hover:bg-[#151D2E] hover:text-[#F8FAFC]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!newTitle.trim()}
+                    className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 disabled:opacity-50 shadow-sm"
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-[calc(100vh-180px)] min-h-[500px] w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900/80 shadow-2xl">
-      {/* Left Sidebar — Conversations List */}
-      <div className="flex w-72 flex-col border-r border-slate-800 bg-slate-950/60">
-        <div className="flex items-center justify-between border-b border-slate-800 p-4">
-          <h2 className="text-sm font-semibold text-slate-100">Conversations</h2>
-          <button
-            onClick={() => setShowNewModal(true)}
-            className="rounded-lg bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-sky-500"
-          >
-            + New
-          </button>
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-190px)] min-h-[500px] w-full overflow-hidden rounded-2xl border border-[#1F2937] bg-[#111827] shadow-lg">
+      {/* Left Sidebar — Conversation List (Hidden on mobile if chat view open) */}
+      <div
+        className={`flex w-full lg:w-80 flex-col border-r border-[#1F2937] bg-[#0B0F19]/50 ${
+          showMobileChat ? 'hidden lg:flex' : 'flex'
+        }`}
+      >
+        <div className="flex flex-col border-b border-[#1F2937] p-3.5 bg-[#111827] gap-2.5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-extrabold text-[#F8FAFC] uppercase tracking-wider">Conversations</h2>
+            <button
+              onClick={() => setShowNewModal(true)}
+              className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-500 transition min-h-[34px] cursor-pointer"
+            >
+              + New Thread
+            </button>
+          </div>
+
+          <div className="relative">
+            <input
+              type="text"
+              value={threadSearch}
+              onChange={(e) => setThreadSearch(e.target.value)}
+              placeholder="Search threads..."
+              className="w-full rounded-xl border border-[#1F2937] bg-[#0B0F19] pl-3 pr-7 py-1.5 text-xs text-[#F8FAFC] placeholder:text-[#64748B] focus:border-indigo-500 focus:outline-none"
+            />
+            {threadSearch && (
+              <button
+                onClick={() => setThreadSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#94A3B8] hover:text-[#F8FAFC]"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         {loadingConvs ? (
-          <div className="p-4 text-xs text-slate-500 animate-pulse">Loading threads...</div>
-        ) : conversations.length === 0 ? (
-          <div className="p-6 text-center text-xs text-slate-400">
-            No conversations yet.<br />Start a discussion for this project.
+          <div className="p-4 text-xs text-[#94A3B8] font-medium animate-pulse">Loading threads...</div>
+        ) : filteredConvs.length === 0 ? (
+          <div className="p-4 text-xs text-[#94A3B8] text-center">
+            {threadSearch ? 'No threads match your search.' : 'No threads yet.'}
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-800/40">
-            {conversations.map((c) => {
+          <div className="flex-1 overflow-y-auto divide-y divide-[#1F2937]/50">
+            {filteredConvs.map((c) => {
               const isActive = c.id === activeConvId;
+              const lastMsgText = c.lastMessage
+                ? `${c.lastMessage.senderName}: ${c.lastMessage.body}`
+                : 'No messages yet';
+              const relTime = c.updatedAt ? formatRelativeTime(c.updatedAt) : '';
+
               return (
                 <button
                   key={c.id}
-                  onClick={() => setActiveConvId(c.id)}
-                  className={`w-full p-3.5 text-left transition ${
-                    isActive ? 'bg-sky-500/10 border-l-2 border-sky-400' : 'hover:bg-slate-800/50'
+                  onClick={() => handleSelectConv(c.id)}
+                  className={`w-full p-4 text-left transition cursor-pointer ${
+                    isActive
+                      ? 'bg-indigo-950/40 border-l-4 border-indigo-500 text-[#F8FAFC]'
+                      : 'hover:bg-[#151D2E]/60 text-[#94A3B8]'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-200 truncate">{c.title}</span>
-                    {c.unread && (
-                      <span className="h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
-                    )}
-                  </div>
-                  {c.lastMessage && (
-                    <p className="mt-1 line-clamp-1 text-[11px] text-slate-400">
-                      {c.lastMessage.senderName}: {c.lastMessage.body}
-                    </p>
-                  )}
-                  <div className="mt-2 flex items-center justify-between text-[10px] text-slate-500">
-                    <span>{c.participantCount || 1} participant(s)</span>
-                    <span>
-                      {c.updatedAt ? new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-xs font-bold truncate ${isActive ? 'text-indigo-400' : 'text-[#F8FAFC]'}`}>
+                      {c.title}
                     </span>
+                    <span className="text-[10px] font-mono text-[#64748B] shrink-0 font-medium">{relTime}</span>
+                  </div>
+
+                  <p className="mt-1 line-clamp-1 text-xs text-[#94A3B8] font-medium">{lastMsgText}</p>
+
+                  <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-[#64748B] font-medium">
+                    <span>{c.participantCount || 1} participant(s)</span>
+                    {c.unread && (
+                      <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+                    )}
                   </div>
                 </button>
               );
@@ -259,74 +444,94 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
         )}
       </div>
 
-      {/* Main Conversation Pane */}
+      {/* Main Conversation Chat Pane */}
       {activeConv ? (
-        <div className="flex flex-1 flex-col bg-slate-900/40">
-          {/* Conversation Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 px-6 py-3.5 bg-slate-900/80">
-            <div>
-              <h3 className="text-sm font-semibold text-white">{activeConv.title}</h3>
-              <p className="text-[11px] text-slate-400">Project Discussion Thread</p>
+        <div
+          className={`flex flex-1 flex-col bg-[#0B0F19]/30 relative ${
+            !showMobileChat ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-[#1F2937] px-4 sm:px-6 py-3.5 bg-[#111827] gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setShowMobileChat(false)}
+                className="lg:hidden text-xs font-bold text-indigo-400 hover:text-indigo-300 p-1"
+              >
+                ← Threads
+              </button>
+              <div className="min-w-0">
+                <h3 className="text-xs sm:text-sm font-extrabold text-[#F8FAFC] truncate">{activeConv.title}</h3>
+                <p className="text-[10px] text-[#94A3B8] font-medium">Project Discussion</p>
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-xs">
+
+            <div className="flex items-center gap-2.5 text-xs shrink-0">
               <button
                 type="button"
                 onClick={handleAnalyzeIntent}
                 disabled={isAnalyzing}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-1.5 rounded-lg border border-indigo-500/30 text-xs shadow transition flex items-center gap-1.5 disabled:opacity-50"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-xl border border-indigo-500 text-xs shadow-sm transition flex items-center gap-1.5 disabled:opacity-50 min-h-[36px] cursor-pointer"
               >
-                {isAnalyzing ? (
-                  <>
-                    <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <span>⚡</span>
-                    Analyze Intent
-                  </>
-                )}
+                {isAnalyzing ? 'Analyzing...' : '⚡ Intent'}
               </button>
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-mono text-[10px] ${
-                isWsConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-              }`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${isWsConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                {isWsConnected ? 'Live Connection' : 'Connecting...'}
-              </span>
+              {getWsBadge()}
             </div>
           </div>
 
           {/* Messages Feed */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 relative"
+          >
             {loadingMsgs ? (
-              <div className="text-center text-xs text-slate-500 animate-pulse">Loading message history...</div>
+              <div className="text-center text-xs text-[#94A3B8] font-medium animate-pulse">Loading message history...</div>
             ) : messages.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-400">
-                No messages yet. Start the conversation below.
+              <div className="py-12 text-center text-xs text-[#94A3B8] space-y-1">
+                <p className="text-base">💬</p>
+                <p className="font-bold text-[#F8FAFC]">No messages in this thread yet.</p>
+                <p className="text-[#94A3B8] font-medium">Send your first message below.</p>
               </div>
             ) : (
               messages.map((m) => {
                 const isMine = m.senderId === user?.id;
                 return (
-                  <div
-                    key={m.id}
-                    className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
-                  >
+                  <div key={m.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
                     <div className="flex items-center gap-2 mb-1 text-[11px]">
-                      <span className="font-semibold text-slate-300">{isMine ? 'You' : m.sender?.name || (m as any).senderName || 'Member'}</span>
-                      <span className="text-slate-500">{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="font-bold text-[#F8FAFC]">
+                        {isMine ? 'You' : m.sender?.name || (m as any).senderName || 'Member'}
+                      </span>
+                      <span className="text-[#64748B] font-mono">
+                        {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {m.sendStatus === 'sending' && (
+                        <span className="text-[10px] text-amber-400 font-mono animate-pulse">sending...</span>
+                      )}
+                      {m.sendStatus === 'failed' && (
+                        <span className="text-[10px] text-rose-400 font-mono flex items-center gap-1">
+                          failed
+                          <button
+                            onClick={() => handleRetryMessage(m)}
+                            className="underline font-bold hover:text-rose-300"
+                          >
+                            [Retry]
+                          </button>
+                        </span>
+                      )}
                     </div>
 
                     <div
-                      className={`max-w-xl rounded-xl px-4 py-2.5 text-xs shadow-md ${
+                      className={`max-w-xl rounded-2xl px-4 py-2.5 text-xs shadow-sm ${
                         isMine
-                          ? 'bg-sky-600 text-white rounded-tr-none'
-                          : 'bg-slate-800 text-slate-100 border border-slate-700/50 rounded-tl-none'
+                          ? m.sendStatus === 'failed'
+                            ? 'bg-rose-950/80 text-white border border-rose-500/40 rounded-tr-none'
+                            : 'bg-indigo-600 text-white rounded-tr-none'
+                          : 'bg-[#151D2E] text-[#F8FAFC] border border-[#1F2937] rounded-tl-none font-medium'
                       }`}
                     >
                       <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
 
-                      {/* Attachments */}
                       {m.attachments && m.attachments.length > 0 && (
                         <div className="mt-2.5 space-y-1.5 border-t border-white/10 pt-2">
                           {m.attachments.map((att) => (
@@ -335,11 +540,15 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
                               href={getAttachmentDownloadUrl(att.id)}
                               target="_blank"
                               rel="noreferrer"
-                              className="flex items-center gap-2 rounded bg-black/20 px-2.5 py-1 text-[11px] font-mono hover:bg-black/30 transition text-sky-200"
+                              className={`flex items-center gap-2 rounded-lg px-2.5 py-1 text-[11px] font-mono transition ${
+                                isMine
+                                  ? 'bg-indigo-700 text-indigo-100 hover:bg-indigo-800'
+                                  : 'bg-[#0B0F19] text-indigo-400 hover:bg-[#111827]'
+                              }`}
                             >
                               <span>📎</span>
                               <span className="truncate">{att.fileName}</span>
-                              <span className="opacity-60">({Math.round(att.size / 1024)}KB)</span>
+                              <span className="opacity-75">({Math.round(att.size / 1024)}KB)</span>
                             </a>
                           ))}
                         </div>
@@ -352,38 +561,45 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Pending attachments preview */}
+          {/* Floating 'New Messages' scroll indicator */}
+          {hasUnreadBelow && (
+            <button
+              onClick={() => scrollToBottom(true)}
+              className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-xl border border-indigo-400 transition-all animate-bounce z-20 cursor-pointer"
+            >
+              ↓ New messages below
+            </button>
+          )}
+
+          {/* Pending Attachments Bar */}
           {pendingAttachments.length > 0 && (
-            <div className="flex gap-2 px-6 py-2 border-t border-slate-800/60 bg-slate-950/40">
+            <div className="flex gap-2 px-4 sm:px-6 py-2 border-t border-[#1F2937] bg-[#0B0F19]">
               {pendingAttachments.map((att) => (
-                <span key={att.id} className="inline-flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-[10px] text-sky-300 border border-slate-700">
+                <span
+                  key={att.id}
+                  className="inline-flex items-center gap-1 rounded-lg bg-indigo-500/10 px-2.5 py-1 text-[10px] text-indigo-400 border border-indigo-500/30 font-bold"
+                >
                   📎 {att.fileName}
                 </span>
               ))}
             </div>
           )}
 
-          {/* Error Banner */}
           {errorMsg && (
-            <div className="bg-rose-500/10 px-6 py-2 text-xs text-rose-400 border-t border-rose-500/20">
+            <div className="bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-400 border-t border-rose-500/30">
               {errorMsg}
             </div>
           )}
 
-          {/* Message Composer */}
-          <form onSubmit={handleSendMessage} className="border-t border-slate-800 p-4 bg-slate-900/80">
-            <div className="flex items-center gap-3">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                className="hidden"
-              />
+          {/* Message Input Form */}
+          <form onSubmit={handleSendMessage} className="border-t border-[#1F2937] p-3 sm:p-4 bg-[#111827]">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition"
+                className="rounded-xl border border-[#1F2937] bg-[#0B0F19] p-2.5 text-xs text-[#94A3B8] hover:bg-[#151D2E] hover:text-[#F8FAFC] transition shrink-0 min-h-[44px] cursor-pointer"
                 title="Attach file"
               >
                 {uploading ? '⏳' : '📎'}
@@ -393,29 +609,29 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
                 type="text"
                 value={messageBody}
                 onChange={(e) => setMessageBody(e.target.value)}
-                placeholder="Type a message..."
-                className="flex-1 rounded-lg border border-slate-800 bg-slate-950 px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
+                placeholder="Write a message..."
+                className="flex-1 rounded-xl border border-[#1F2937] bg-[#0B0F19] px-4 py-2.5 text-xs text-[#F8FAFC] placeholder:text-[#64748B] focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none min-h-[44px]"
               />
 
               <button
                 type="submit"
                 disabled={sending || (!messageBody.trim() && pendingAttachments.length === 0)}
-                className="rounded-lg bg-sky-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-sky-500 disabled:opacity-50"
+                className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition disabled:opacity-50 shrink-0 min-h-[44px] cursor-pointer"
               >
-                {sending ? 'Sending...' : 'Send'}
+                {sending ? '...' : 'Send ➤'}
               </button>
             </div>
           </form>
         </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center text-xs text-slate-500">
-          Select or create a conversation thread to view messages.
+        <div className="flex flex-1 items-center justify-center p-8 text-xs text-[#94A3B8] font-medium">
+          Select a thread to view conversation.
         </div>
       )}
 
-      {/* Right Sidebar — Intent Intelligence & Human Review Panel */}
+      {/* Right Sidebar — Intent Panel (Desktop only) */}
       {activeConv && (
-        <div className="w-96 border-l border-slate-800 bg-slate-950/80 p-4 overflow-y-auto">
+        <div className="hidden xl:block w-80 border-l border-[#1F2937] bg-[#0B0F19]/50 p-4 overflow-y-auto">
           <IntentPanel
             intent={currentIntent}
             projectId={projectId}
@@ -427,20 +643,20 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
         </div>
       )}
 
-      {/* New Conversation Modal */}
+      {/* Modal */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4">
-            <h3 className="text-sm font-bold text-white">Create Conversation Thread</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-[#1F2937] bg-[#111827] p-6 shadow-2xl space-y-4 text-[#F8FAFC]">
+            <h3 className="text-sm font-extrabold text-[#F8FAFC]">Create Conversation Thread</h3>
             <form onSubmit={handleCreateConversation} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Title</label>
+                <label className="block text-xs font-semibold text-[#94A3B8] mb-1">Title</label>
                 <input
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Homepage Redesign"
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
+                  placeholder="e.g. Homepage Feedback"
+                  className="w-full rounded-xl border border-[#1F2937] bg-[#0B0F19] px-3.5 py-2 text-xs text-[#F8FAFC] placeholder:text-[#64748B] focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                   autoFocus
                 />
               </div>
@@ -449,14 +665,14 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
                 <button
                   type="button"
                   onClick={() => setShowNewModal(false)}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white"
+                  className="rounded-xl px-3.5 py-1.5 text-xs font-semibold text-[#94A3B8] hover:bg-[#151D2E] hover:text-[#F8FAFC]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!newTitle.trim()}
-                  className="rounded-lg bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+                  className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 disabled:opacity-50 shadow-sm"
                 >
                   Create
                 </button>
@@ -468,3 +684,4 @@ export function ConversationView({ projectId, onNavigateToWorkTab }: Conversatio
     </div>
   );
 }
+

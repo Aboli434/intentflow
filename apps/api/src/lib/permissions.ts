@@ -22,22 +22,38 @@ export interface PermissionEvaluationContext {
  */
 export async function getAuthContext(
   userId: string,
-  organizationId: string,
+  organizationId?: string,
   projectId?: string
 ): Promise<PermissionEvaluationContext> {
   const db = getDb();
+  let resolvedOrgId = organizationId || '';
+
+  // Auto-resolve organizationId from projectId if not provided
+  if (!resolvedOrgId && projectId) {
+    const projRecord = await db
+      .select({ organizationId: projects.organizationId })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+
+    if (projRecord.length > 0) {
+      resolvedOrgId = projRecord[0].organizationId;
+    }
+  }
 
   // 1. Fetch Organization Role
-  const orgMember = await db
-    .select()
-    .from(organizationMembers)
-    .where(
-      and(
-        eq(organizationMembers.organizationId, organizationId),
-        eq(organizationMembers.userId, userId)
-      )
-    )
-    .limit(1);
+  const orgMember = resolvedOrgId
+    ? await db
+        .select()
+        .from(organizationMembers)
+        .where(
+          and(
+            eq(organizationMembers.organizationId, resolvedOrgId),
+            eq(organizationMembers.userId, userId)
+          )
+        )
+        .limit(1)
+    : [];
 
   const orgRole = orgMember.length > 0 ? (orgMember[0].role as UserRole) : null;
 
@@ -62,12 +78,13 @@ export async function getAuthContext(
 
   return {
     userId,
-    organizationId,
+    organizationId: resolvedOrgId,
     orgRole,
     projectId,
     projectRole,
   };
 }
+
 
 /**
  * Centralized Policy Evaluation Engine
@@ -110,24 +127,20 @@ export function evaluatePolicy(
       return { allowed: false, reason: 'Clients cannot create projects' };
 
     case 'project:view':
-      // Admin has organization-wide access; developers and clients require project membership
-      if (ctx.orgRole === 'admin') {
-        return { allowed: true };
-      }
-      if (ctx.projectRole) {
+    case 'project_member:view':
+    case 'project_workspace:view':
+      // Admin has organization-wide access; assigned project members have access
+      if (ctx.orgRole === 'admin' || ctx.projectRole) {
         return { allowed: true };
       }
       return { allowed: false, reason: 'Requires explicit project membership' };
 
     case 'project:update':
-      // Org Admin can update project; project developers can update project
-      if (ctx.orgRole === 'admin') {
+      // Org Admin can update project; project developers/managers can update project
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer' || ctx.projectRole === 'manager') {
         return { allowed: true };
       }
-      if (ctx.projectRole === 'developer') {
-        return { allowed: true };
-      }
-      return { allowed: false, reason: 'Requires org admin or assigned developer role on project' };
+      return { allowed: false, reason: 'Requires org admin or assigned developer/manager role on project' };
 
     case 'project:delete':
       // Only org admin can delete/archive projects
@@ -137,14 +150,15 @@ export function evaluatePolicy(
       return { allowed: false, reason: 'Only org admin can delete projects' };
 
     case 'project:manage_members':
-      // Org Admin can manage project members; assigned project developers can add project members
-      if (ctx.orgRole === 'admin') {
+    case 'project_member:assign':
+    case 'project_member:edit':
+    case 'project_member:remove':
+    case 'project_workspace:manage':
+      // Org Admin or assigned Project Manager can manage project members
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'manager') {
         return { allowed: true };
       }
-      if (ctx.projectRole === 'developer') {
-        return { allowed: true };
-      }
-      return { allowed: false, reason: 'Requires org admin or project developer role' };
+      return { allowed: false, reason: 'Requires organization admin or project manager role' };
 
     case 'project:client_approve':
       // ROLE-SPECIFIC BUSINESS ACTION:
@@ -163,21 +177,21 @@ export function evaluatePolicy(
     case 'message:send':
     case 'attachment:upload':
     case 'attachment:view':
-      // Org Admin has administrative visibility; project members (developers & clients) have access
+      // Org Admin has administrative visibility; project members (developers, managers & clients) have access
       if (ctx.orgRole === 'admin' || ctx.projectRole) {
         return { allowed: true };
       }
       return { allowed: false, reason: 'Requires organization admin role or assigned project membership' };
 
     case 'conversation:manage_participants':
-      // Org Admin or assigned project developer can manage conversation participants
-      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer') {
+      // Org Admin or assigned project developer/manager can manage conversation participants
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer' || ctx.projectRole === 'manager') {
         return { allowed: true };
       }
-      return { allowed: false, reason: 'Requires org admin or project developer role' };
+      return { allowed: false, reason: 'Requires org admin or project developer/manager role' };
 
     case 'intent:view':
-      // Org Admin or assigned project member (developer or client) can view intents
+      // Org Admin or assigned project member can view intents
       if (ctx.orgRole === 'admin' || ctx.projectRole) {
         return { allowed: true };
       }
@@ -188,19 +202,18 @@ export function evaluatePolicy(
     case 'intent:confirm':
     case 'intent:reject':
     case 'intent:request_clarification':
-      // Developers assigned to project or Org Admins can review/manage intents
-      // Clients cannot perform internal intent edits, confirmation, or analysis triggers
-      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer') {
+      // Developers/Managers assigned to project or Org Admins can review/manage intents
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer' || ctx.projectRole === 'manager') {
         return { allowed: true };
       }
       return {
         allowed: false,
-        reason: 'Internal intent review actions require org admin or assigned developer role',
+        reason: 'Internal intent review actions require org admin or assigned developer/manager role',
       };
 
     case 'work:view':
     case 'work:view_activity':
-      // Org Admin or any assigned project member (developer or client) can view work items & progress
+      // Org Admin or any assigned project member can view work items & progress
       if (ctx.orgRole === 'admin' || ctx.projectRole) {
         return { allowed: true };
       }
@@ -213,14 +226,13 @@ export function evaluatePolicy(
     case 'work:generate_proposal':
     case 'work:approve_proposal':
     case 'work:complete':
-      // Org Admin or assigned project developer can execute work lifecycle and proposal actions
-      // Clients can view progress but CANNOT generate/approve proposals or edit internal work
-      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer') {
+      // Org Admin or assigned project developer/manager can execute work lifecycle
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer' || ctx.projectRole === 'manager') {
         return { allowed: true };
       }
       return {
         allowed: false,
-        reason: 'Execution and proposal actions require organization admin or assigned developer role',
+        reason: 'Execution and proposal actions require organization admin or assigned developer/manager role',
       };
 
     case 'notification:view':
@@ -252,11 +264,11 @@ export function evaluatePolicy(
     case 'milestone:edit':
     case 'milestone:complete':
     case 'revision:manage':
-      // Org Admin or assigned project developer
-      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer') {
+      // Org Admin or assigned project developer/manager
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer' || ctx.projectRole === 'manager') {
         return { allowed: true };
       }
-      return { allowed: false, reason: 'Requires organization admin role or assigned developer role on project' };
+      return { allowed: false, reason: 'Requires organization admin role or assigned developer/manager role on project' };
 
     case 'deliverable:approve':
     case 'deliverable:request_changes':
@@ -285,11 +297,11 @@ export function evaluatePolicy(
     case 'project:closure_submit':
     case 'project:closure_revision_manage':
     case 'project:handoff_manage':
-      // Org Admin or assigned project developer
-      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer') {
+      // Org Admin or assigned project developer/manager
+      if (ctx.orgRole === 'admin' || ctx.projectRole === 'developer' || ctx.projectRole === 'manager') {
         return { allowed: true };
       }
-      return { allowed: false, reason: 'Requires organization admin role or assigned developer role on project' };
+      return { allowed: false, reason: 'Requires organization admin role or assigned developer/manager role on project' };
 
     case 'project:closure_approve':
     case 'project:closure_request_changes':
@@ -313,7 +325,7 @@ export function evaluatePolicy(
  */
 export async function enforcePolicy(
   userId: string,
-  organizationId: string,
+  organizationId: string | undefined,
   action: PolicyAction,
   projectId?: string
 ): Promise<{ allowed: boolean; reason?: string; ctx: PermissionEvaluationContext }> {
@@ -321,3 +333,4 @@ export async function enforcePolicy(
   const result = evaluatePolicy(ctx, action);
   return { ...result, ctx };
 }
+

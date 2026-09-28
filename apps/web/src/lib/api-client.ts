@@ -27,6 +27,8 @@ import {
   HandoffItem,
   ProjectCompletionChecklist,
   ProjectCompletionEligibility,
+  ProjectMemberDetail,
+  AvailableOrgMember,
 } from '@intentflow/types';
 import {
   SignupValidation,
@@ -38,6 +40,8 @@ import {
   SendMessageValidation,
   UpdateIntentValidation,
   CreateClarificationValidation,
+  AssignProjectMemberValidation,
+  UpdateProjectMemberRoleValidation,
   CreateWorkItemValidation,
   UpdateWorkItemValidation,
   CreateDeliverableValidation,
@@ -58,8 +62,23 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 function getAuthHeader(): Record<string, string> {
   if (typeof window === 'undefined') return {};
+  const headers: Record<string, string> = {};
   const token = localStorage.getItem('intentflow_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const orgId = localStorage.getItem('intentflow_active_org_id');
+  if (orgId) headers['x-organization-id'] = orgId;
+  return headers;
+}
+
+export function setActiveOrgId(orgId: string): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('intentflow_active_org_id', orgId);
+  }
+}
+
+export function getActiveOrgId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('intentflow_active_org_id');
 }
 
 function getStoredToken(): string | null {
@@ -100,6 +119,19 @@ export async function apiLogin(data: LoginValidation): Promise<{ token: string; 
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+  });
+  const result = await handleResponse<{ token: string; user: User }>(res);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('intentflow_token', result.token);
+  }
+  return result;
+}
+
+export async function apiDemoLogin(role: 'admin' | 'developer' | 'client' = 'admin'): Promise<{ token: string; user: User }> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/demo-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
   });
   const result = await handleResponse<{ token: string; user: User }>(res);
   if (typeof window !== 'undefined') {
@@ -196,17 +228,16 @@ export async function apiInviteMember(orgId: string, data: CreateInvitationValid
   return handleResponse<OrganizationInvitation>(res);
 }
 
-export async function apiCancelInvitation(invitationId: string): Promise<{ message: string }> {
-  const res = await fetch(`${API_BASE_URL}/api/organization-invitations/${invitationId}/cancel`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-    body: JSON.stringify({}),
+export async function apiCancelInvitation(orgId: string, invitationId: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/organizations/${orgId}/invitations/${invitationId}`, {
+    method: 'DELETE',
+    headers: { ...getAuthHeader() },
   });
   return handleResponse<{ message: string }>(res);
 }
 
-export async function apiResendInvitation(invitationId: string): Promise<OrganizationInvitation> {
-  const res = await fetch(`${API_BASE_URL}/api/organization-invitations/${invitationId}/resend`, {
+export async function apiResendInvitation(orgId: string, invitationId: string): Promise<OrganizationInvitation> {
+  const res = await fetch(`${API_BASE_URL}/api/organizations/${orgId}/invitations/${invitationId}/resend`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
     body: JSON.stringify({}),
@@ -320,19 +351,42 @@ export async function apiMarkConversationRead(conversationId: string): Promise<v
 }
 
 // ATTACHMENTS API
-export async function apiUploadAttachment(projectId: string, file: File): Promise<MessageAttachment> {
+export async function apiUploadAttachment(
+  file: File,
+  projectId: string,
+  messageId?: string,
+  relatedEntityType?: string,
+  relatedEntityId?: string
+): Promise<any> {
   const formData = new FormData();
-  formData.append('projectId', projectId);
   formData.append('file', file);
+  formData.append('projectId', projectId);
+  if (messageId) formData.append('messageId', messageId);
+  if (relatedEntityType) formData.append('relatedEntityType', relatedEntityType);
+  if (relatedEntityId) formData.append('relatedEntityId', relatedEntityId);
 
   const res = await fetch(`${API_BASE_URL}/api/attachments/upload`, {
     method: 'POST',
-    headers: {
-      ...getAuthHeader(),
-    },
+    headers: { ...getAuthHeader() },
     body: formData,
   });
-  return handleResponse<MessageAttachment>(res);
+  return handleResponse<any>(res);
+}
+
+export async function apiDeleteAttachment(attachmentId: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/attachments/${attachmentId}`, {
+    method: 'DELETE',
+    headers: { ...getAuthHeader() },
+  });
+  return handleResponse<{ message: string }>(res);
+}
+
+export async function apiGetProjectAttachments(projectId: string): Promise<any[]> {
+  const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}/attachments`, {
+    headers: { ...getAuthHeader() },
+    cache: 'no-store',
+  });
+  return handleResponse<any[]>(res);
 }
 
 export function getAttachmentDownloadUrl(attachmentId: string): string {
@@ -836,42 +890,140 @@ export async function apiAcknowledgeProjectHandoff(handoffId: string): Promise<P
 }
 
 // REAL-TIME WEBSOCKET HELPER
+export type WsConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'offline';
+
 export function connectConversationWebSocket(
   conversationId: string,
   onEvent: (event: RealtimeMessageEvent) => void,
-  onStatusChange?: (connected: boolean) => void
+  onStatusChange?: (connected: boolean) => void,
+  onStateChange?: (state: WsConnectionState) => void
 ): () => void {
   const token = getStoredToken();
-  if (!token) return () => {};
+  if (!token) {
+    onStatusChange?.(false);
+    onStateChange?.('offline');
+    return () => {};
+  }
 
-  const wsUrl = (API_BASE_URL.replace(/^http/, 'ws')) + `/api/conversations/${conversationId}/ws?token=${encodeURIComponent(token)}`;
-  const ws = new WebSocket(wsUrl);
+  let ws: WebSocket | null = null;
+  let isMounted = true;
+  let reconnectAttempts = 0;
+  let reconnectTimer: any = null;
+  const maxReconnectAttempts = 6;
 
-  ws.onopen = () => {
-    onStatusChange?.(true);
-  };
+  function connect() {
+    if (!isMounted) return;
 
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      onEvent(data);
-    } catch (err) {
-      console.error('Failed to parse WebSocket message', err);
+    if (reconnectAttempts > 0) {
+      onStateChange?.('reconnecting');
+    } else {
+      onStateChange?.('connecting');
     }
-  };
 
-  ws.onclose = () => {
-    onStatusChange?.(false);
-  };
+    const wsUrl = (API_BASE_URL.replace(/^http/, 'ws')) + `/api/conversations/${conversationId}/ws?token=${encodeURIComponent(token || '')}`;
+    ws = new WebSocket(wsUrl);
 
-  ws.onerror = (err) => {
-    console.error('WebSocket error:', err);
-    onStatusChange?.(false);
-  };
+    ws.onopen = () => {
+      if (!isMounted) return;
+      reconnectAttempts = 0;
+      onStatusChange?.(true);
+      onStateChange?.('connected');
+    };
+
+    ws.onmessage = (event) => {
+      if (!isMounted) return;
+      try {
+        const data = JSON.parse(event.data);
+        onEvent(data);
+      } catch (err) {
+        console.error('Failed to parse WebSocket message', err);
+      }
+    };
+
+    ws.onclose = () => {
+      if (!isMounted) return;
+      onStatusChange?.(false);
+
+      if (reconnectAttempts < maxReconnectAttempts) {
+        reconnectAttempts++;
+        const backoffMs = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 15000);
+        onStateChange?.('reconnecting');
+        reconnectTimer = setTimeout(connect, backoffMs);
+      } else {
+        onStateChange?.('offline');
+      }
+    };
+
+    ws.onerror = (err) => {
+      if (!isMounted) return;
+      console.error('WebSocket connection error:', err);
+      onStatusChange?.(false);
+    };
+  }
+
+  connect();
 
   return () => {
-    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+    isMounted = false;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
       ws.close();
     }
   };
 }
+
+// PHASE 10 — PROJECT TEAM API
+export async function apiGetProjectMembers(projectId: string): Promise<ProjectMemberDetail[]> {
+  const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}/members`, {
+    headers: { ...getAuthHeader() },
+    cache: 'no-store',
+  });
+  const data = await handleResponse<{ members: ProjectMemberDetail[] }>(res);
+  return data.members;
+}
+
+export async function apiGetAvailableProjectMembers(projectId: string): Promise<AvailableOrgMember[]> {
+  const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}/available-members`, {
+    headers: { ...getAuthHeader() },
+    cache: 'no-store',
+  });
+  const data = await handleResponse<{ members: AvailableOrgMember[] }>(res);
+  return data.members;
+}
+
+export async function apiAssignProjectMember(
+  projectId: string,
+  data: AssignProjectMemberValidation
+): Promise<ProjectMemberDetail> {
+  const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}/members`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ProjectMemberDetail>(res);
+}
+
+export async function apiUpdateProjectMemberRole(
+  projectId: string,
+  memberId: string,
+  data: UpdateProjectMemberRoleValidation
+): Promise<ProjectMemberDetail> {
+  const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}/members/${memberId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ProjectMemberDetail>(res);
+}
+
+export async function apiRemoveProjectMember(
+  projectId: string,
+  memberId: string
+): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}/members/${memberId}`, {
+    method: 'DELETE',
+    headers: { ...getAuthHeader() },
+  });
+  return handleResponse<{ message: string }>(res);
+}
+

@@ -412,6 +412,42 @@ export async function workRoutes(app: FastifyInstance) {
   });
 
   /**
+   * PATCH /api/work/:workItemId/status
+   * Transition work item status (Alias for PATCH method)
+   */
+  app.patch('/work/:workItemId/status', async (request: AuthenticatedRequest, reply) => {
+    try {
+      const { workItemId } = request.params as { workItemId: string };
+      const user = request.user!;
+
+      const workProj = await workService.getWorkItemProject(workItemId);
+      if (!workProj) {
+        return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Work item not found' } });
+      }
+
+      const orgId = (request.headers['x-organization-id'] as string) || '';
+      const policy = await enforcePolicy(user.id, orgId, 'work:change_status', workProj.projectId);
+      if (!policy.allowed) {
+        return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: policy.reason } });
+      }
+
+      const parseResult = updateWorkItemStatusSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(422).send({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid payload', details: parseResult.error.format() },
+        });
+      }
+
+      const updated = await workService.updateWorkItemStatus(workItemId, user.id, parseResult.data.status);
+      return reply.status(200).send({ success: true, data: updated });
+    } catch (err: any) {
+      console.error('Error updating status:', err);
+      return reply.status(500).send({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
+    }
+  });
+
+  /**
    * GET /api/work/:workItemId/activity
    * Get audit log timeline of events for a work item
    */

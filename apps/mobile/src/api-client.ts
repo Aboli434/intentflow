@@ -292,3 +292,46 @@ export async function mobileRemoveOrgMember(orgId: string, memberId: string): Pr
     method: 'DELETE',
   });
 }
+
+// PHASE 10 — PROJECT TEAM MOBILE API
+export async function mobileGetProjectMembers(projectId: string): Promise<any> {
+  const res = await request<{ members: any[] }>(`/api/projects/${projectId}/members`);
+  return res.members;
+}
+
+export async function mobileGetAvailableProjectMembers(projectId: string): Promise<any> {
+  const res = await request<{ members: any[] }>(`/api/projects/${projectId}/available-members`);
+  return res.members;
+}
+
+export async function mobileAssignProjectMember(
+  projectId: string,
+  userId: string,
+  projectRole: string
+): Promise<any> {
+  return request<any>(`/api/projects/${projectId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ userId, projectRole }),
+  });
+}
+
+export async function mobileUpdateProjectMemberRole(
+  projectId: string,
+  memberId: string,
+  projectRole: string
+): Promise<any> {
+  return request<any>(`/api/projects/${projectId}/members/${memberId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ projectRole }),
+  });
+}
+
+export async function mobileRemoveProjectMember(
+  projectId: string,
+  memberId: string
+): Promise<any> {
+  return request<any>(`/api/projects/${projectId}/members/${memberId}`, {
+    method: 'DELETE',
+  });
+}
+

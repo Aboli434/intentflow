@@ -1,28 +1,41 @@
 # IntentFlow
 
-> Web + Mobile collaboration platform for clients and developers.
+> **IntentFlow turns messy client communication into structured, verified work.**
 
-Natural client communication → IntentFlow interpretation → Developer confirmation → Structured work → Delivery & Approval.
+```text
+Communication ──> AI Interpretation ──> Human Verification ──> Structured Intent
+                                                                        │
+Handoff <── Completion <── Deliverable Review <── Work Execution <──────┘
+```
 
 ---
 
-## Current Status: Phase 9 — Multi-Channel Team Invitations & Member Management
+## Current Status: Phase 20 — Real Deployment, Demo Experience & Final Product Polish
 
-IntentFlow has completed **Phase 9 — Multi-Channel Team Invitations & Member Management**.
-All multi-channel invitation methods (Email & Mobile E.164 format), pluggable delivery service abstractions (`InvitationDeliveryService`), public invitation acceptance flows (`/invite/[token]`), pending invitation management (Resend & Cancel), member role changes, last-admin protection, audit timelines, real-time WebSocket events, web & mobile screens, security/tenant-isolation rules, and 21 end-to-end integration tests are fully implemented and verified.
+IntentFlow has completed **Phase 20 — Real Deployment, Demo Experience & Final Product Polish**.
+The platform is fully deployable, observable, hardened, and portfolio-demo ready.
+
+### 🌟 Key Features & Architecture
+- **Interactive Portfolio Demo Portal (`/demo`)**: One-click role-based login cards (*Client*, *Developer*, *Admin*) for interactive product demonstrations.
+- **Idempotent Demo Database Seed (`pnpm db:seed`)**: Deterministic database seeding for *"Nexus Digital Agency"* featuring real-world conversations, AI intents, kanban work items, and deliverable review flows.
+- **AI Intent Intelligence**: Automated message parsing, intent extraction, requirement confidence scoring, missing question detection, and developer clarification drafting.
+- **Human Review & Traceability**: Developer confirmation/rejection workflow, version history snapshots, and source message traceability mappings.
+- **Structured Work & Execution**: Confirmed intents auto-generate work items with assignees, priority levels, kanban status transitions, and audit logs.
+- **Deliverables & Client Approval**: Milestone deliverables, client review flows (`Approve` / `Request Changes`), revision requests, and closure handoffs.
+- **Production Infrastructure**: Drizzle ORM SQL database migrations (`pnpm db:migrate`), multi-provider object storage (`S3` / `Supabase`), multi-channel notifications (`Resend` / `SendGrid` / `Twilio SMS`), unauthenticated `/health` & `/ready` diagnostic probes, and structured production logging.
+- **Multi-Tenant Security & Isolation**: Strict role-based authorization (Admin, Developer, Client), project membership checks, non-leaking error handlers, and 25MB attachment guards.
 
 ---
 
 ## 🚀 Tech Stack
 
 - **Monorepo**: pnpm Workspaces, Turborepo
-- **Web App**: Next.js (App Router), React, TypeScript, Tailwind CSS
+- **Web App**: Next.js 15 (App Router), React, TypeScript, Vanilla CSS (Dark SaaS Theme)
 - **Mobile App**: Expo, React Native, TypeScript, Expo Router
-- **Backend API**: Node.js, Fastify, TypeScript, WebSockets
+- **Backend API**: Fastify, TypeScript, WebSockets
 - **AI Intelligence Layer**: OpenAI GPT-4o integration + Local fallback engine
-- **Database**: PostgreSQL, Drizzle ORM, Drizzle Kit
-- **Validation**: Zod
-- **Code Quality**: Strict TypeScript, ESLint, Prettier
+- **Database & Storage**: PostgreSQL, Drizzle ORM, S3 / Supabase Storage
+- **Validation & Security**: Zod, Helmet, Signed Cookies, CORS Origin Guards
 
 ---
 
@@ -41,13 +54,15 @@ intentflow/
 ├── docs/
 │   ├── product/      # Product specifications
 │   ├── ux/           # UX design documentation
-│   └── architecture/ # Technical architecture guides & Phase 1–9 docs
+│   ├── architecture/ # Technical architecture guides & Phase 1–20 decision records
+│   ├── deployment/   # Production deployment & environment reference guides
+│   ├── security/     # Production security audit reports
+│   └── qa/           # Smoke test reports & launch checklists
 ├── package.json
 ├── pnpm-workspace.yaml
 ├── turbo.json
 ├── tsconfig.json
 ├── .env.example
-├── .gitignore
 └── README.md
 ```
 
@@ -60,37 +75,42 @@ intentflow/
 - pnpm >= 8.0.0
 - PostgreSQL database running on port 5432
 
-### 2. Installation & Database Migration
+### 2. Installation & Database Setup
 ```bash
 pnpm install
 cp .env.example .env
 pnpm --filter @intentflow/api db:migrate
+pnpm db:seed
 ```
 
 ---
 
 ## 💻 Development Commands
 
-Execute from root:
-
 | Command | Action |
 |---|---|
 | `pnpm dev` | Start web (3000), API (4000), and mobile dev servers |
-| `pnpm build` | Build all packages and applications |
-| `pnpm lint` | Run ESLint across all apps and packages |
-| `pnpm typecheck` | Perform strict TypeScript checks |
-| `npx tsx scratch/test-phase9.ts` | Run Phase 9 end-to-end integration test suite |
+| `pnpm build` | Build all packages and applications for production |
+| `pnpm lint` | Run ESLint across all apps and workspace packages |
+| `pnpm typecheck` | Perform strict TypeScript type checking |
+| `pnpm db:seed` | Seed deterministic portfolio demo data (Idempotent) |
+| `npx tsx scratch/test-phase20.ts` | Run Phase 20 final launch verification suite |
 
 ---
 
-## 🗺️ Roadmap & Implementation Phases
+## 🧪 Automated Verification Status
 
-- **Phase 1 — Engineering Foundation** *(Completed)*
-- **Phase 2 — Authentication, Organizations & Projects** *(Completed)*
-- **Phase 3 — Conversations & Messaging** *(Completed)*
-- **Phase 4 — Intent Intelligence & Human Review** *(Completed)*
-- **Phase 5 — Confirmed Intent → Structured Work & Execution** *(Completed)*
-- **Phase 6 — Notifications, Activity & Progress Intelligence** *(Completed)*
-- **Phase 7 — Client Portal, Approvals & Delivery** *(Completed)*
-- **Phase 8 — Project Closure, Handoff & Completion** *(Completed)*
-- **Phase 9 — Multi-Channel Team Invitations & Member Management** *(Completed)*
+```text
+Phase 16 Integration Suite:  19 / 19 PASS (100%)
+Phase 17 Integration Suite:  19 / 19 PASS (100%)
+Phase 18 Launch Suite:       15 / 15 PASS (100%)
+Phase 19 Verification Suite: 18 / 18 PASS (100%)
+Phase 20 Final Launch Suite: 20 / 20 PASS (100%)
+
+Monorepo Typecheck: PASS (0 Errors across 6 packages)
+Monorepo Linting:   PASS (0 Errors across 6 packages)
+Production Build:   PASS (0 Errors across 6 packages)
+Mobile App Check:   PASS (0 Errors in apps/mobile)
+```
+
+

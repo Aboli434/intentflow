@@ -128,17 +128,17 @@ export function WorkProposalView({
   const approvedProposal = proposals.find((p) => p.status === 'approved');
   if (approvedProposal) {
     return (
-      <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-4 text-slate-200 space-y-3">
+      <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 text-[#F8FAFC] space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-extrabold text-xs shrink-0">
               ✓
             </div>
             <div>
-              <h4 className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
+              <h4 className="text-xs font-extrabold text-emerald-400 uppercase tracking-wider">
                 Work Created & Approved
               </h4>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#94A3B8] font-medium">
                 {approvedProposal.items?.length || 0} work items generated from confirmed intent.
               </p>
             </div>
@@ -147,7 +147,7 @@ export function WorkProposalView({
             <button
               type="button"
               onClick={onNavigateToWorkTab}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow transition"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-md transition"
             >
               View Work →
             </button>
@@ -161,19 +161,19 @@ export function WorkProposalView({
   const pendingProposal = activeProposal && activeProposal.status === 'pending_review' ? activeProposal : null;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-slate-200 space-y-3">
+    <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-5 text-[#F8FAFC] space-y-4 shadow-md">
       {error && (
-        <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs p-2.5 rounded-lg">
+        <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs p-3 rounded-xl font-semibold">
           {error}
         </div>
       )}
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">
+          <span className="text-[10px] uppercase font-mono font-bold text-indigo-400 tracking-wider">
             Structured Execution Proposal
           </span>
-          <h4 className="text-sm font-bold text-slate-100">
+          <h4 className="text-sm font-extrabold text-[#F8FAFC]">
             {pendingProposal ? 'AI Work Proposal Pending Review' : 'Convert Intent to Work'}
           </h4>
         </div>
@@ -185,7 +185,7 @@ export function WorkProposalView({
                 type="button"
                 onClick={handleGenerate}
                 disabled={generating}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg shadow transition flex items-center gap-1.5 disabled:opacity-50"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {generating ? (
                   <>
@@ -200,7 +200,7 @@ export function WorkProposalView({
               <button
                 type="button"
                 onClick={() => setShowReviewModal(true)}
-                className="bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30 text-xs font-semibold px-3.5 py-1.5 rounded-lg transition"
+                className="bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer"
               >
                 Review Proposal ({pendingProposal.items?.length || 0} items)
               </button>
@@ -210,23 +210,23 @@ export function WorkProposalView({
       </div>
 
       {pendingProposal && (
-        <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-3 space-y-2">
-          <div className="text-xs font-medium text-slate-300 flex items-center justify-between">
+        <div className="bg-[#0B0F19]/60 border border-[#1F2937] rounded-xl p-3.5 space-y-2">
+          <div className="text-xs font-bold text-[#F8FAFC] flex items-center justify-between">
             <span>Suggested Tasks:</span>
-            <span className="text-[10px] text-slate-400">Developer Review Required</span>
+            <span className="text-[10px] text-[#94A3B8] font-mono">Developer Review Required</span>
           </div>
           <ul className="space-y-1.5">
             {pendingProposal.items?.map((item, idx) => (
               <li
                 key={item.id || idx}
-                className="flex items-center justify-between text-xs bg-slate-900/60 px-2.5 py-1.5 rounded border border-slate-800/80"
+                className="flex items-center justify-between text-xs bg-[#111827] px-3 py-2 rounded-lg border border-[#1F2937] shadow-sm"
               >
-                <span className="text-slate-200 font-medium">{item.title}</span>
+                <span className="text-[#F8FAFC] font-bold">{item.title}</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded border border-slate-700">
+                  <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/30 font-bold uppercase">
                     {item.priority} priority
                   </span>
-                  <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">
+                  <span className="text-[10px] bg-[#151D2E] text-[#94A3B8] px-2 py-0.5 rounded border border-[#1F2937] font-bold uppercase">
                     {item.estimatedEffort} effort
                   </span>
                 </div>
@@ -238,36 +238,36 @@ export function WorkProposalView({
 
       {/* Proposal Review Modal */}
       {showReviewModal && pendingProposal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full space-y-4 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-6 max-w-2xl w-full space-y-4 max-h-[85vh] flex flex-col shadow-2xl text-[#F8FAFC]">
+            <div className="flex items-center justify-between border-b border-[#1F2937] pb-3">
               <div>
-                <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
                   Human Developer Review
                 </span>
-                <h3 className="text-base font-bold text-slate-100">Review AI Work Proposal</h3>
+                <h3 className="text-base font-extrabold text-[#F8FAFC]">Review AI Work Proposal</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowReviewModal(false)}
-                className="text-slate-400 hover:text-slate-200 text-sm font-bold"
+                className="text-[#64748B] hover:text-[#F8FAFC] text-sm font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#94A3B8] font-medium">
               Review, edit, add, or remove suggested work items before converting them into actionable project tasks.
             </p>
 
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
               {editableItems.map((item, idx) => (
                 <div
                   key={idx}
-                  className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 space-y-2.5 text-xs"
+                  className="bg-[#0B0F19]/60 border border-[#1F2937] rounded-xl p-3.5 space-y-2.5 text-xs"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-500 font-bold text-[10px]">#{idx + 1}</span>
+                    <span className="text-[#64748B] font-bold text-[10px]">#{idx + 1}</span>
                     <input
                       type="text"
                       value={item.title}
@@ -276,7 +276,7 @@ export function WorkProposalView({
                         newItems[idx].title = e.target.value;
                         setEditableItems(newItems);
                       }}
-                      className="flex-1 bg-slate-900 text-slate-100 font-medium px-2.5 py-1 rounded border border-slate-700 focus:outline-none focus:border-indigo-500"
+                      className="flex-1 bg-[#111827] text-[#F8FAFC] font-bold px-3 py-1.5 rounded-lg border border-[#1F2937] focus:outline-none focus:border-indigo-500"
                     />
                     <button
                       type="button"
@@ -296,10 +296,10 @@ export function WorkProposalView({
                       newItems[idx].description = e.target.value;
                       setEditableItems(newItems);
                     }}
-                    className="w-full bg-slate-900 text-slate-300 text-xs px-2.5 py-1 rounded border border-slate-800"
+                    className="w-full bg-[#111827] text-[#F8FAFC] text-xs px-3 py-1.5 rounded-lg border border-[#1F2937]"
                   />
 
-                  <div className="flex items-center gap-4 flex-wrap text-slate-400">
+                  <div className="flex items-center gap-4 flex-wrap text-[#94A3B8] font-medium">
                     <div className="flex items-center gap-1.5">
                       <span>Priority:</span>
                       <select
@@ -309,7 +309,7 @@ export function WorkProposalView({
                           newItems[idx].priority = e.target.value as any;
                           setEditableItems(newItems);
                         }}
-                        className="bg-slate-900 text-slate-200 rounded border border-slate-700 px-2 py-0.5 text-xs"
+                        className="bg-[#111827] text-[#F8FAFC] rounded-lg border border-[#1F2937] px-2 py-1 text-xs"
                       >
                         <option value="low">low</option>
                         <option value="medium">medium</option>
@@ -327,7 +327,7 @@ export function WorkProposalView({
                           newItems[idx].estimatedEffort = e.target.value as any;
                           setEditableItems(newItems);
                         }}
-                        className="bg-slate-900 text-slate-200 rounded border border-slate-700 px-2 py-0.5 text-xs"
+                        className="bg-[#111827] text-[#F8FAFC] rounded-lg border border-[#1F2937] px-2 py-1 text-xs"
                       >
                         <option value="small">small</option>
                         <option value="medium">medium</option>
@@ -354,18 +354,18 @@ export function WorkProposalView({
                     },
                   ])
                 }
-                className="w-full py-2 border border-dashed border-slate-700 text-indigo-400 hover:text-indigo-300 text-xs font-semibold rounded-lg text-center hover:bg-slate-800/40 transition"
+                className="w-full py-2.5 border border-dashed border-[#1F2937] text-indigo-400 hover:bg-indigo-500/10 text-xs font-bold rounded-xl text-center transition"
               >
                 + Add Custom Work Item
               </button>
             </div>
 
-            <div className="border-t border-slate-800 pt-3 flex items-center justify-between gap-2">
+            <div className="border-t border-[#1F2937] pt-3.5 flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={handleReject}
                 disabled={loading}
-                className="text-rose-400 hover:text-rose-300 text-xs font-semibold px-3 py-1.5 rounded"
+                className="text-rose-400 hover:text-rose-300 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-rose-500/10"
               >
                 Reject Proposal
               </button>
@@ -374,7 +374,7 @@ export function WorkProposalView({
                 <button
                   type="button"
                   onClick={() => setShowReviewModal(false)}
-                  className="text-slate-400 hover:text-slate-200 text-xs px-3 py-1.5"
+                  className="text-[#94A3B8] hover:text-[#F8FAFC] text-xs font-semibold px-3.5 py-1.5 rounded-lg hover:bg-[#151D2E]"
                 >
                   Cancel
                 </button>
@@ -382,7 +382,7 @@ export function WorkProposalView({
                   type="button"
                   onClick={handleApprove}
                   disabled={loading || editableItems.length === 0}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5 disabled:opacity-50"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition flex items-center gap-1.5 disabled:opacity-50"
                 >
                   ✓ Approve & Create Work Items
                 </button>
@@ -394,3 +394,4 @@ export function WorkProposalView({
     </div>
   );
 }
+

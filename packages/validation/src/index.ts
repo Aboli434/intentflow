@@ -5,7 +5,7 @@ import { z } from 'zod';
  */
 
 export const userRoleSchema = z.enum(['admin', 'developer', 'client']);
-export const projectRoleSchema = z.enum(['developer', 'client']);
+export const projectRoleSchema = z.enum(['client', 'developer', 'manager', 'viewer']);
 export const projectStatusSchema = z.enum(['active', 'archived']);
 export const messageTypeSchema = z.enum(['text', 'system']);
 
@@ -367,6 +367,15 @@ export const updateClosureRevisionStatusSchema = z.object({
   status: z.enum(['in_progress', 'resolved', 'cancelled']),
 });
 
+export const assignProjectMemberSchema = z.object({
+  userId: z.string().uuid('Invalid User ID'),
+  projectRole: projectRoleSchema,
+});
+
+export const updateProjectMemberRoleSchema = z.object({
+  projectRole: projectRoleSchema,
+});
+
 export type SignupValidation = z.infer<typeof signupSchema>;
 export type LoginValidation = z.infer<typeof loginSchema>;
 export type CreateOrganizationValidation = z.infer<typeof createOrganizationSchema>;
@@ -375,6 +384,8 @@ export type CreateInvitationValidation = z.infer<typeof createInvitationSchema>;
 export type CreateProjectValidation = z.infer<typeof createProjectSchema>;
 export type UpdateProjectValidation = z.infer<typeof updateProjectSchema>;
 export type AddProjectMemberValidation = z.infer<typeof addProjectMemberSchema>;
+export type AssignProjectMemberValidation = z.infer<typeof assignProjectMemberSchema>;
+export type UpdateProjectMemberRoleValidation = z.infer<typeof updateProjectMemberRoleSchema>;
 export type CreateConversationValidation = z.infer<typeof createConversationSchema>;
 export type SendMessageValidation = z.infer<typeof sendMessageSchema>;
 export type AddParticipantValidation = z.infer<typeof addParticipantSchema>;

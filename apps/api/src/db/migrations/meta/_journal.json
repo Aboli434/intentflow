@@ -64,6 +64,20 @@
       "when": 1790495134634,
       "tag": "0008_tired_boomerang",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790499407038,
+      "tag": "0009_low_firedrake",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790573926317,
+      "tag": "0010_perpetual_wonder_man",
+      "breakpoints": true
     }
   ]
 }

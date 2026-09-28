@@ -15,6 +15,17 @@ This document outlines the engineering architecture for **IntentFlow**, a web + 
 - **Phase 7 — Client Portal, Approvals & Delivery**: Completed
 - **Phase 8 — Project Closure, Handoff & Completion**: Completed
 - **Phase 9 — Multi-Channel Team Invitations & Member Management**: Completed
+- **Phase 10 — Project Assignment & Team Workspace**: Completed
+- **Phase 11 — Project Workspace Experience, Role-Based Dashboard & Responsive UI Unification**: Completed
+- **Phase 12 — Notifications Center, Activity Experience & Dashboard UX**: Completed
+- **Phase 13 — Project Execution, UX Polish & Responsive Workspace**: Completed
+- **Phase 14 — End-to-End Product Flow, Production Hardening & UX Consistency**: Completed
+- **Phase 15 — Product UI/UX Refinement, Design System & Responsive Experience**: Completed
+- **Phase 16 — Production Integrations & Real User Workflow**: Completed
+- **Phase 17 — Production Readiness, Real Integrations & Final UX Polish**: Completed
+- **Phase 18 — Production Deployment, Real Infrastructure & Launch Readiness**: Completed
+- **Phase 19 — Production Deployment, Smoke Testing & Launch Verification**: Completed
+- **Phase 20 — Real Deployment, Demo Experience & Final Product Polish**: Completed
 
 Detailed specifications and decision records:
 - Phase 2: [`phase-2.md`](./phase-2.md)
@@ -25,6 +36,19 @@ Detailed specifications and decision records:
 - Phase 7: [`phase-7.md`](./phase-7.md)
 - Phase 8: [`phase-8.md`](./phase-8.md)
 - Phase 9: [`phase-9.md`](./phase-9.md)
+- Phase 10: [`phase-10.md`](./phase-10.md)
+- Phase 11: [`phase-11.md`](./phase-11.md)
+- Phase 12: [`phase-12.md`](./phase-12.md)
+- Phase 13: [`phase-13.md`](./phase-13.md)
+- Phase 14: [`phase-14.md`](./phase-14.md)
+- Phase 15: [`phase-15.md`](./phase-15.md)
+- Phase 16: [`phase-16.md`](./phase-16.md)
+- Phase 17: [`phase-17.md`](./phase-17.md)
+- Phase 18: [`phase-18.md`](./phase-18.md)
+- Phase 19: [`phase-19.md`](./phase-19.md)
+- Phase 20: [`phase-20.md`](./phase-20.md)
+
+
 
 ---
 

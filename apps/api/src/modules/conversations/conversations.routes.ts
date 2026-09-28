@@ -191,10 +191,11 @@ export async function conversationRoutes(app: FastifyInstance) {
           senderName: users.name,
         })
         .from(messages)
-        .innerJoin(users, eq(messages.senderId, users.id))
+        .leftJoin(users, eq(messages.senderId, users.id))
         .where(eq(messages.conversationId, conv.id))
         .orderBy(desc(messages.createdAt))
         .limit(1);
+
 
       const isUnread = lastMsg
         ? userPart?.lastReadAt

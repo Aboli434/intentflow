@@ -75,26 +75,26 @@ export const DeliverableEditor: React.FC<DeliverableEditorProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl max-w-xl w-full p-6 text-slate-100">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <h2 className="text-lg font-bold text-white">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-[#111827] border border-[#1F2937] rounded-2xl shadow-2xl max-w-xl w-full p-6 text-[#F8FAFC]">
+        <div className="flex items-center justify-between pb-4 border-b border-[#1F2937]">
+          <h2 className="text-lg font-extrabold text-[#F8FAFC]">
             {deliverable ? '✏️ Edit Deliverable' : '📦 Create New Deliverable'}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 transition">
+          <button onClick={onClose} className="text-[#64748B] hover:text-[#F8FAFC] transition font-bold">
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-red-900/40 border border-red-500/50 rounded-lg text-xs text-red-300">
+          <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs font-semibold text-rose-400">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[#94A3B8] mb-1">
               Deliverable Title *
             </label>
             <input
@@ -103,12 +103,12 @@ export const DeliverableEditor: React.FC<DeliverableEditorProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Homepage Redesign & Mobile Navigation"
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              className="w-full bg-[#0B0F19] border border-[#1F2937] rounded-xl p-2.5 text-xs text-[#F8FAFC] placeholder-[#64748B] focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[#94A3B8] mb-1">
               Description & Notes
             </label>
             <textarea
@@ -116,20 +116,20 @@ export const DeliverableEditor: React.FC<DeliverableEditorProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe what was produced or instructions for client review..."
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              className="w-full bg-[#0B0F19] border border-[#1F2937] rounded-xl p-2.5 text-xs text-[#F8FAFC] placeholder-[#64748B] focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
           </div>
 
           {/* Associate Milestone */}
           {availableMilestones.length > 0 && (
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-[#94A3B8] mb-1">
                 Associate Project Milestone
               </label>
               <select
                 value={selectedMilestoneId}
                 onChange={(e) => setSelectedMilestoneId(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                className="w-full bg-[#0B0F19] border border-[#1F2937] rounded-xl p-2 text-xs text-[#F8FAFC] focus:outline-none focus:border-indigo-500"
               >
                 <option value="">-- No Milestone --</option>
                 {availableMilestones.map((m) => (
@@ -144,41 +144,41 @@ export const DeliverableEditor: React.FC<DeliverableEditorProps> = ({
           {/* Link Completed Work Items */}
           {availableWorkItems.length > 0 && (
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-[#94A3B8] mb-1">
                 Link Completed Work Items
               </label>
-              <div className="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-slate-950 border border-slate-800 rounded-lg">
+              <div className="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-[#0B0F19]/60 border border-[#1F2937] rounded-xl custom-scrollbar">
                 {availableWorkItems.map((wi) => (
                   <label
                     key={wi.id}
-                    className="flex items-center gap-2 p-1.5 hover:bg-slate-900 rounded text-xs cursor-pointer"
+                    className="flex items-center gap-2 p-1.5 hover:bg-[#151D2E] rounded-lg text-xs cursor-pointer"
                   >
                     <input
                       type="checkbox"
                       checked={selectedWorkItemIds.includes(wi.id)}
                       onChange={() => toggleWorkItem(wi.id)}
-                      className="rounded border-slate-700 text-cyan-500 focus:ring-0"
+                      className="rounded border-[#1F2937] bg-[#0B0F19] text-indigo-500 focus:ring-0"
                     />
-                    <span className="text-slate-200 font-medium truncate">{wi.title}</span>
-                    <span className="text-[10px] text-slate-500 ml-auto">{wi.status}</span>
+                    <span className="text-[#F8FAFC] font-bold truncate">{wi.title}</span>
+                    <span className="text-[10px] text-[#94A3B8] ml-auto font-mono uppercase">{wi.status}</span>
                   </label>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+          <div className="pt-4 border-t border-[#1F2937] flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition"
+              className="px-4 py-2 bg-[#151D2E] hover:bg-[#1F2937] text-[#94A3B8] hover:text-[#F8FAFC] text-xs font-semibold rounded-xl transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-lg transition"
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition"
             >
               {submitting ? 'Saving...' : deliverable ? 'Update Deliverable' : 'Create Deliverable'}
             </button>
@@ -188,3 +188,4 @@ export const DeliverableEditor: React.FC<DeliverableEditorProps> = ({
     </div>
   );
 };
+

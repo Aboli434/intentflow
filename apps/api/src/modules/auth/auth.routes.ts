@@ -237,4 +237,65 @@ export async function authRoutes(app: FastifyInstance) {
       },
     });
   });
+
+  // POST /api/auth/demo-login
+  app.post('/demo-login', async (request, reply) => {
+    const { role = 'admin' } = (request.body as { role?: 'admin' | 'developer' | 'client' }) || {};
+    const emailMap: Record<string, string> = {
+      admin: 'admin@intentflow-demo.io',
+      developer: 'developer@intentflow-demo.io',
+      client: 'client@intentflow-demo.io',
+    };
+
+    const targetEmail = emailMap[role] || emailMap.admin;
+    const db = getDb();
+
+    let userRecords = await db.select().from(users).where(eq(users.email, targetEmail)).limit(1);
+
+    // If demo user does not exist yet, trigger demo seeding
+    if (userRecords.length === 0) {
+      const { seedDemoData } = await import('../../db/seed-demo.js');
+      await seedDemoData();
+      userRecords = await db.select().from(users).where(eq(users.email, targetEmail)).limit(1);
+    }
+
+    if (userRecords.length === 0) {
+      return reply.status(500).send({
+        success: false,
+        error: { code: 'DEMO_USER_NOT_FOUND', message: 'Unable to initialize demo user account' },
+      });
+    }
+
+    const user = userRecords[0];
+    const token = generateToken();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await db.insert(sessions).values({
+      userId: user.id,
+      token,
+      expiresAt,
+    });
+
+    reply.setCookie('session_token', token, {
+      path: '/',
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      expires: expiresAt,
+    });
+
+    return reply.status(200).send({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          avatarUrl: user.avatarUrl,
+          createdAt: user.createdAt.toISOString(),
+          updatedAt: user.updatedAt.toISOString(),
+        },
+      },
+    });
+  });
 }

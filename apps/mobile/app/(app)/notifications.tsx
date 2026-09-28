@@ -7,6 +7,7 @@ import {
   RefreshControl,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Notification } from '@intentflow/types';
@@ -16,12 +17,15 @@ import {
   mobileMarkAllNotificationsRead,
 } from '../../src/api-client';
 
+type FilterType = 'All' | 'Unread' | 'Projects' | 'Organization';
+
 export default function NotificationsScreen() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>('All');
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -72,9 +76,16 @@ export default function NotificationsScreen() {
       handleMarkRead(n.id);
     }
     if (n.projectId) {
-      router.push(`/projects/${n.projectId}`);
+      router.push(`/(app)/projects/${n.projectId}` as any);
     }
   };
+
+  const filteredNotifications = notifications.filter((n) => {
+    if (activeFilter === 'Unread') return !n.readAt;
+    if (activeFilter === 'Projects') return Boolean(n.projectId);
+    if (activeFilter === 'Organization') return n.type.startsWith('organization_');
+    return true;
+  });
 
   const unreadCount = notifications.filter((n) => !n.readAt).length;
 
@@ -107,6 +118,26 @@ export default function NotificationsScreen() {
         )}
       </View>
 
+      {/* Filter Tabs */}
+      <View style={styles.filterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+          {(['All', 'Unread', 'Projects', 'Organization'] as FilterType[]).map((tab) => {
+            const isActive = activeFilter === tab;
+            return (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveFilter(tab)}
+                style={[styles.filterPill, isActive && styles.activeFilterPill]}
+              >
+                <Text style={[styles.filterText, isActive && styles.activeFilterText]}>
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       {error ? (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
@@ -115,15 +146,21 @@ export default function NotificationsScreen() {
 
       {/* List */}
       <FlatList
-        data={notifications}
+        data={filteredNotifications}
         keyExtractor={(item) => item.id}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>All Caught Up!</Text>
-            <Text style={styles.emptySubtitle}>You have no notifications at this time.</Text>
+            <Text style={styles.emptyTitle}>
+              {activeFilter === 'Unread' ? "You're All Caught Up!" : 'No Notifications'}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {activeFilter === 'Unread'
+                ? 'No unread notifications to review right now.'
+                : "We'll let you know when something needs your attention."}
+            </Text>
           </View>
         }
         renderItem={({ item }) => {
@@ -188,8 +225,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingBottom: 12,
+    marginBottom: 12,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#1e293b',
   },
@@ -219,6 +256,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  filterContainer: {
+    marginBottom: 14,
+  },
+  filterScroll: {
+    gap: 8,
+  },
+  filterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  activeFilterPill: {
+    backgroundColor: '#6366f1',
+    borderColor: '#6366f1',
+  },
+  filterText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  activeFilterText: {
+    color: '#ffffff',
+  },
   errorBox: {
     backgroundColor: 'rgba(244, 63, 94, 0.1)',
     borderColor: 'rgba(244, 63, 94, 0.3)',
@@ -245,6 +308,7 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     color: '#64748b',
     fontSize: 12,
+    textAlign: 'center',
   },
   card: {
     backgroundColor: '#0f172a',

@@ -19,6 +19,7 @@ import { notificationRoutes } from './modules/notifications/notifications.routes
 import { deliverableRoutes } from './modules/deliverables/deliverables.routes.js';
 import { milestoneRoutes } from './modules/milestones/milestones.routes.js';
 import { projectClosureRoutes } from './modules/project-closure/project-closure.routes.js';
+import { projectMemberRoutes } from './modules/project-members/project-members.routes.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -38,15 +39,36 @@ export function buildApp() {
     secret: process.env.JWT_SECRET || 'intentflow_cookie_secret_key_2026',
   });
 
-  // Centralized Error Handler
+  // Centralized Error Handler with Production Diagnostics Masking
   app.setErrorHandler((error: Error & { statusCode?: number; code?: string }, _request, reply) => {
     app.log.error(error);
     const statusCode = error.statusCode || 500;
+
+    // Mask sensitive SQL errors or internal stack traces in production mode
+    let message = error.message || 'An unexpected error occurred';
+    let code = error.code || 'INTERNAL_SERVER_ERROR';
+
+    if (env.NODE_ENV === 'production' && statusCode === 500) {
+      message = 'An internal server error occurred while processing your request.';
+      code = 'INTERNAL_SERVER_ERROR';
+    }
+
     reply.status(statusCode).send({
       success: false,
       error: {
-        code: error.code || 'INTERNAL_SERVER_ERROR',
-        message: error.message || 'An unexpected error occurred',
+        code,
+        message,
+      },
+    });
+  });
+
+  // Centralized 404 Not Found Handler
+  app.setNotFoundHandler((request, reply) => {
+    reply.status(404).send({
+      success: false,
+      error: {
+        code: 'NOT_FOUND',
+        message: `Route ${request.method}:${request.url} not found`,
       },
     });
   });
@@ -54,21 +76,44 @@ export function buildApp() {
   // Root Endpoint
   app.get('/', async () => {
     return {
-      message: 'IntentFlow API Service Foundation',
-      version: '0.8.0',
-      phase: 'Phase 8 — Project Closure, Handoff & Completion',
+      message: 'IntentFlow API Production Platform',
+      version: '1.0.0',
+      phase: 'Phase 18 — Production Deployment & Launch Readiness',
       docs: '/health',
     };
   });
 
-  // Health Check Endpoint (Required standard format)
+  // Health Check Endpoint (Liveness Check)
   app.get('/health', async (_request, reply) => {
-    const dbStatus = await checkDatabaseConnection();
     return reply.status(200).send({
       status: 'ok',
       service: 'intentflow-api',
       timestamp: new Date().toISOString(),
-      database: dbStatus.connected ? 'connected' : 'disconnected',
+    });
+  });
+
+  // Readiness Check Endpoint (Dependency Verification)
+  app.get('/ready', async (_request, reply) => {
+    const dbStatus = await checkDatabaseConnection();
+    const isReady = dbStatus.connected;
+
+    if (!isReady) {
+      return reply.status(503).send({
+        ready: false,
+        service: 'intentflow-api',
+        database: 'disconnected',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return reply.status(200).send({
+      ready: true,
+      service: 'intentflow-api',
+      database: 'connected',
+      storage: env.STORAGE_PROVIDER,
+      email: env.EMAIL_PROVIDER,
+      sms: env.SMS_PROVIDER,
+      timestamp: new Date().toISOString(),
     });
   });
 
@@ -78,6 +123,7 @@ export function buildApp() {
   app.register(organizationRoutes, { prefix: '/api/organizations' });
   app.register(invitationRoutes, { prefix: '/api' });
   app.register(projectRoutes, { prefix: '/api/projects' });
+  app.register(projectMemberRoutes, { prefix: '/api/projects' });
   app.register(conversationRoutes, { prefix: '/api' });
   app.register(attachmentRoutes, { prefix: '/api/attachments' });
   app.register(intentRoutes, { prefix: '/api' });

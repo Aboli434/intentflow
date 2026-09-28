@@ -15,11 +15,15 @@ export const organizationInvitations = pgTable('organization_invitations', {
   role: text('role', { enum: ['admin', 'developer', 'client'] }).notNull(),
   token: text('token').notNull().unique(),
   invitedBy: text('invited_by').references(() => users.id, { onDelete: 'set null' }),
-  status: text('status', { enum: ['pending', 'accepted', 'expired', 'cancelled'] })
+  status: text('status', { enum: ['pending', 'sent', 'delivery_failed', 'accepted', 'expired', 'cancelled'] })
     .default('pending')
     .notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   acceptedAt: timestamp('accepted_at'),
+  sentAt: timestamp('sent_at'),
+  deliveryStatus: text('delivery_status'),
+  lastDeliveryAttempt: timestamp('last_delivery_attempt'),
+  failureReason: text('failure_reason'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
 });

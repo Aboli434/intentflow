@@ -28,13 +28,13 @@ export function ProjectHandoffView({ handoff, isClient, onRefresh }: ProjectHand
   const isAcknowledged = handoff.handoffStatus === 'acknowledged';
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+    <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-5 space-y-4 shadow-md text-[#F8FAFC]">
+      <div className="flex items-center justify-between border-b border-[#1F2937] pb-3">
         <div>
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
+          <h3 className="text-base font-extrabold text-[#F8FAFC] flex items-center gap-2">
             📦 Final Project Handoff Package
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-[#94A3B8] font-medium mt-0.5">
             Delivered on {handoff.deliveredAt ? new Date(handoff.deliveredAt).toLocaleDateString() : 'Date'}
           </p>
         </div>
@@ -42,8 +42,8 @@ export function ProjectHandoffView({ handoff, isClient, onRefresh }: ProjectHand
         <span
           className={`px-3 py-1 text-xs font-bold rounded-lg uppercase font-mono border ${
             isAcknowledged
-              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-              : 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
           }`}
         >
           {handoff.handoffStatus}
@@ -51,55 +51,55 @@ export function ProjectHandoffView({ handoff, isClient, onRefresh }: ProjectHand
       </div>
 
       {handoff.summary && (
-        <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 text-xs text-slate-300">
-          <span className="font-semibold text-white block mb-1">Handoff Overview:</span>
+        <div className="p-3 bg-[#0B0F19]/60 rounded-xl border border-[#1F2937] text-xs text-[#94A3B8] font-medium">
+          <span className="font-bold text-[#F8FAFC] block mb-1">Handoff Overview:</span>
           {handoff.summary}
         </div>
       )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center">
-          <span className="block text-lg font-bold text-cyan-400">
+        <div className="p-3 bg-[#0B0F19]/60 border border-[#1F2937] rounded-xl text-center">
+          <span className="block text-lg font-extrabold text-cyan-400">
             {handoff.approvedDeliverablesCount}
           </span>
-          <span className="text-[10px] text-slate-400">Approved Deliverables</span>
+          <span className="text-[10px] text-[#94A3B8] font-mono font-semibold">Approved Deliverables</span>
         </div>
-        <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center">
-          <span className="block text-lg font-bold text-emerald-400">
+        <div className="p-3 bg-[#0B0F19]/60 border border-[#1F2937] rounded-xl text-center">
+          <span className="block text-lg font-extrabold text-emerald-400">
             {handoff.completedWorkCount}
           </span>
-          <span className="text-[10px] text-slate-400">Completed Items</span>
+          <span className="text-[10px] text-[#94A3B8] font-mono font-semibold">Completed Items</span>
         </div>
-        <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center">
-          <span className="block text-lg font-bold text-purple-400">
+        <div className="p-3 bg-[#0B0F19]/60 border border-[#1F2937] rounded-xl text-center">
+          <span className="block text-lg font-extrabold text-purple-400">
             {handoff.items?.length || 0}
           </span>
-          <span className="text-[10px] text-slate-400">Handoff Items</span>
+          <span className="text-[10px] text-[#94A3B8] font-mono font-semibold">Handoff Items</span>
         </div>
       </div>
 
       {/* Handoff Items List */}
       {handoff.items && handoff.items.length > 0 && (
         <div className="space-y-2 pt-2">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+          <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider block">
             Handoff Deliverables & Files:
           </span>
           <div className="space-y-1.5">
             {handoff.items.map((item) => (
               <div
                 key={item.id}
-                className="p-3 bg-slate-950 border border-slate-800/80 rounded-lg text-xs flex items-center justify-between"
+                className="p-3 bg-[#0B0F19]/60 border border-[#1F2937] rounded-xl text-xs flex items-center justify-between"
               >
                 <div>
-                  <span className="font-bold text-white block">{item.title}</span>
+                  <span className="font-bold text-[#F8FAFC] block">{item.title}</span>
                   {item.description && (
-                    <span className="text-[11px] text-slate-400 block mt-0.5">
+                    <span className="text-[11px] text-[#94A3B8] block mt-0.5 font-medium">
                       {item.description}
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-mono uppercase bg-slate-900 border border-slate-700 text-slate-300 px-2 py-0.5 rounded">
+                <span className="text-[10px] font-mono uppercase bg-[#151D2E] border border-[#1F2937] text-[#94A3B8] px-2 py-0.5 rounded font-bold">
                   {item.type}
                 </span>
               </div>
@@ -109,9 +109,9 @@ export function ProjectHandoffView({ handoff, isClient, onRefresh }: ProjectHand
       )}
 
       {/* Footer / Acknowledge Action */}
-      <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+      <div className="pt-3 border-t border-[#1F2937] flex items-center justify-between">
         {isAcknowledged ? (
-          <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+          <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 font-mono">
             ✓ Handoff Acknowledged by {handoff.acknowledgedByName || 'Client'} on{' '}
             {handoff.acknowledgedAt ? new Date(handoff.acknowledgedAt).toLocaleDateString() : ''}
           </span>
@@ -119,12 +119,12 @@ export function ProjectHandoffView({ handoff, isClient, onRefresh }: ProjectHand
           <button
             onClick={handleAcknowledge}
             disabled={loading}
-            className="ml-auto px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg transition"
+            className="ml-auto px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition cursor-pointer"
           >
             {loading ? 'Acknowledging...' : 'Acknowledge Handoff'}
           </button>
         ) : (
-          <span className="text-xs text-slate-500 italic">
+          <span className="text-xs text-[#94A3B8] italic font-medium">
             Awaiting client handoff acknowledgement.
           </span>
         )}
@@ -132,3 +132,4 @@ export function ProjectHandoffView({ handoff, isClient, onRefresh }: ProjectHand
     </div>
   );
 }
+

@@ -3,7 +3,7 @@
  */
 
 export type UserRole = 'admin' | 'developer' | 'client';
-export type ProjectRole = 'developer' | 'client';
+export type ProjectRole = 'client' | 'developer' | 'manager' | 'viewer';
 export type ProjectStatus =
   | 'active'
   | 'closure_requested'
@@ -30,6 +30,12 @@ export type PolicyAction =
   | 'project:delete'
   | 'project:manage_members'
   | 'project:client_approve'
+  | 'project_member:view'
+  | 'project_member:assign'
+  | 'project_member:edit'
+  | 'project_member:remove'
+  | 'project_workspace:view'
+  | 'project_workspace:manage'
   | 'conversation:create'
   | 'conversation:view'
   | 'conversation:manage_participants'
@@ -109,7 +115,7 @@ export interface OrganizationMember {
 }
 
 export type InvitationMethod = 'email' | 'sms';
-export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled';
+export type InvitationStatus = 'pending' | 'sent' | 'delivery_failed' | 'accepted' | 'expired' | 'cancelled';
 
 export interface OrganizationInvitation {
   id: string;
@@ -123,6 +129,10 @@ export interface OrganizationInvitation {
   status: InvitationStatus;
   expiresAt: string;
   acceptedAt?: string | null;
+  sentAt?: string | null;
+  deliveryStatus?: string | null;
+  lastDeliveryAttempt?: string | null;
+  failureReason?: string | null;
   createdAt: string;
   updatedAt?: string;
   organizationName?: string;
@@ -405,7 +415,10 @@ export type NotificationType =
   | 'organization_invitation_resent'
   | 'organization_member_added'
   | 'organization_member_removed'
-  | 'organization_role_changed';
+  | 'organization_role_changed'
+  | 'project_member_assigned'
+  | 'project_member_role_changed'
+  | 'project_member_removed';
 
 export interface Notification {
   id: string;
@@ -659,6 +672,39 @@ export interface ApiResponse<T = unknown> {
   };
 }
 
+export interface ProjectMemberDetail {
+  id: string;
+  projectId: string;
+  userId: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+  organizationRole: UserRole;
+  projectRole: ProjectRole;
+  assignedAt: string;
+  assignedBy?: string | null;
+}
+
+export interface ProjectMemberActivity {
+  id: string;
+  projectId: string;
+  userId: string;
+  actorId: string;
+  action: 'member_assigned' | 'member_role_changed' | 'member_removed';
+  metadata?: Record<string, any> | null;
+  createdAt: string;
+  actorName?: string;
+  targetUserName?: string;
+}
+
+export interface AvailableOrgMember {
+  userId: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+  organizationRole: UserRole;
+}
+
 export type RealtimeMessageEvent =
   | { type: 'conversation.message.created'; conversationId: string; message: Message }
   | { type: 'conversation.message.updated'; conversationId: string; message: Message }
@@ -699,4 +745,7 @@ export type RealtimeMessageEvent =
   | { type: 'handoff.delivered'; projectId: string; handoff: ProjectHandoff }
   | { type: 'handoff.acknowledged'; projectId: string; handoff: ProjectHandoff }
   | { type: 'project.completed'; projectId: string }
+  | { type: 'project.member_assigned'; projectId: string; member: ProjectMemberDetail }
+  | { type: 'project.member_role_changed'; projectId: string; memberId: string; projectRole: ProjectRole }
+  | { type: 'project.member_removed'; projectId: string; memberId: string }
   | { event: string; data: any };

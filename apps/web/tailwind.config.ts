@@ -10,12 +10,27 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        dark: {
+          bg: '#0B0F19',
+          surface: '#111827',
+          elevated: '#151D2E',
+          border: '#1F2937',
+        },
         brand: {
-          50: '#f0f7ff',
-          100: '#e0effe',
-          500: '#0284c7',
-          600: '#0369a1',
-          900: '#0c4a6e',
+          primary: '#6366F1',
+          secondary: '#8B5CF6',
+          50: '#eef2ff',
+          100: '#e0e7ff',
+          500: '#6366F1',
+          600: '#4F46E5',
+          700: '#4338CA',
+          900: '#1E1B4B',
+        },
+        status: {
+          success: '#10B981',
+          warning: '#F59E0B',
+          danger: '#EF4444',
+          info: '#06B6D4',
         },
       },
     },

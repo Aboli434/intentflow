@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { organizations } from './organizations';
 import { users } from './users';
 
@@ -28,10 +28,15 @@ export const projectMembers = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    role: text('role', { enum: ['developer', 'client'] }).notNull(),
+    role: text('role', { enum: ['client', 'developer', 'manager', 'viewer'] }).notNull(),
+    assignedBy: text('assigned_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
   },
   (table) => [
     uniqueIndex('project_user_unique_idx').on(table.projectId, table.userId),
+    index('project_members_project_id_idx').on(table.projectId),
+    index('project_members_user_id_idx').on(table.userId),
+    index('project_members_role_idx').on(table.role),
   ]
 );

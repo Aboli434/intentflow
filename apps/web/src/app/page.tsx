@@ -63,8 +63,11 @@ export default function Home() {
           )}
         </div>
 
-        <div className="pt-2 text-center">
-          <Link href="/dashboard" className="inline-block px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-sm font-bold text-white shadow-md transition-all">
+        <div className="pt-2 text-center flex items-center justify-center gap-3">
+          <Link href="/demo" className="inline-block px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-sm font-bold text-white shadow-md transition-all">
+            Explore Demo Persona →
+          </Link>
+          <Link href="/dashboard" className="inline-block px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-sm font-bold text-white shadow-md transition-all">
             Go to Workspace Dashboard →
           </Link>
         </div>

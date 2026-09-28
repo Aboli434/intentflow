@@ -481,6 +481,64 @@ export async function deliverableRoutes(app: FastifyInstance) {
   });
 
   /**
+   * POST /api/deliverables/:deliverableId/submit
+   * Alias for submitting deliverable for client review
+   */
+  app.post('/deliverables/:deliverableId/submit', async (request: AuthenticatedRequest, reply) => {
+    try {
+      const { deliverableId } = request.params as { deliverableId: string };
+      const user = request.user!;
+      const db = getDb();
+
+      const [deliv] = await db.select().from(deliverables).where(eq(deliverables.id, deliverableId)).limit(1);
+      if (!deliv) {
+        return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Deliverable not found' } });
+      }
+
+      const [project] = await db.select().from(projects).where(eq(projects.id, deliv.projectId)).limit(1);
+      const policy = await enforcePolicy(user.id, project.organizationId, 'deliverable:submit_review', project.id);
+      if (!policy.allowed) {
+        return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: policy.reason } });
+      }
+
+      const now = new Date();
+      const [updated] = await db
+        .update(deliverables)
+        .set({
+          status: 'ready_for_review',
+          deliveredAt: now,
+          updatedAt: now,
+        })
+        .where(eq(deliverables.id, deliverableId))
+        .returning();
+
+      await activityService.recordActivity({
+        projectId: project.id,
+        actorId: user.id,
+        type: 'deliverable_submitted',
+        entityType: 'deliverable',
+        entityId: deliverableId,
+        metadata: { title: updated.title },
+      });
+
+      await notificationService.notifyOnDeliverableSubmitted({
+        projectId: project.id,
+        deliverableId,
+        title: updated.title,
+        submittedById: user.id,
+      });
+
+      return reply.status(200).send({
+        success: true,
+        data: updated,
+      });
+    } catch (err: any) {
+      console.error('Error submitting deliverable for review:', err);
+      return reply.status(500).send({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
+    }
+  });
+
+  /**
    * POST /api/deliverables/:deliverableId/approve
    * Client approves deliverable
    */

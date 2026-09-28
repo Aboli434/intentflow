@@ -53,7 +53,6 @@ export function ProjectCompletionView({
       setChecklist(chkRes);
       setClosures(closuresRes);
 
-      // Try fetching handoff if project has closure
       try {
         const hRes = await apiGetProjectHandoff(projectId);
         setHandoff(hRes);
@@ -92,15 +91,23 @@ export function ProjectCompletionView({
 
   const activeClosure = closures.length > 0 ? closures[0] : null;
 
+  const completionPct = eligibility
+    ? eligibility.totalWorkCount > 0
+      ? Math.round((eligibility.completedWorkCount / eligibility.totalWorkCount) * 100)
+      : eligibility.eligible
+      ? 100
+      : 0
+    : 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-[#F8FAFC]">
       {/* Top Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#111827] border border-[#1F2937] rounded-2xl p-5 shadow-md">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            ✅ Project Closure, Completion & Handoff
+          <h2 className="text-base sm:text-lg font-extrabold text-[#F8FAFC] tracking-tight flex items-center gap-2">
+            ✅ Project Completion, Closure & Handoff
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#94A3B8] mt-1 max-w-xl leading-relaxed font-medium">
             {isClient
               ? 'Review final project deliverables, approve closure request, and acknowledge project handoff.'
               : 'Verify completion criteria, submit project closure for client approval, and deliver final handoff.'}
@@ -111,10 +118,10 @@ export function ProjectCompletionView({
           <button
             onClick={() => setIsCreatingClosure(true)}
             disabled={!eligibility?.eligible}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg shadow-lg transition flex items-center gap-1.5 ${
+            className={`px-4 py-2.5 text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5 shrink-0 min-h-[40px] cursor-pointer ${
               eligibility?.eligible
                 ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                : 'bg-[#151D2E] text-[#64748B] cursor-not-allowed border border-[#1F2937]'
             }`}
           >
             <span>+</span> Submit Project Closure
@@ -123,124 +130,180 @@ export function ProjectCompletionView({
       </div>
 
       {error && (
-        <div className="p-3 bg-red-900/40 border border-red-500/50 rounded-lg text-xs text-red-300">
+        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs font-semibold text-rose-400">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-slate-500 text-xs">Loading completion status...</div>
+        <div className="py-12 text-center text-[#94A3B8] text-xs font-medium animate-pulse">Loading completion status...</div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left 2 Cols: Eligibility & Readiness Overview */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Status Card */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Completion Readiness
+        <div className="space-y-6">
+          {/* SECTION 1: Completion Readiness */}
+          <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-5 space-y-4 shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1F2937] pb-3.5">
+              <div>
+                <span className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-widest block">
+                  Section 1
                 </span>
-                {eligibility?.eligible ? (
-                  <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold rounded-full">
-                    ✓ Eligible for Closure
-                  </span>
-                ) : (
-                  <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold rounded-full">
-                    ⚠️ {eligibility?.blockers.length} Completion Blocker(s)
-                  </span>
-                )}
+                <h3 className="text-sm sm:text-base font-extrabold text-[#F8FAFC]">Completion Readiness ({completionPct}% Ready)</h3>
               </div>
 
-              {/* Progress Summary Counters */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
-                <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center">
-                  <span className="block text-xl font-extrabold text-cyan-400">
-                    {eligibility?.completedWorkCount} / {eligibility?.totalWorkCount}
-                  </span>
-                  <span className="text-[11px] text-slate-400">Completed Work</span>
-                </div>
-                <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center">
-                  <span className="block text-xl font-extrabold text-emerald-400">
-                    {eligibility?.approvedDeliverablesCount} / {eligibility?.totalDeliverablesCount}
-                  </span>
-                  <span className="text-[11px] text-slate-400">Approved Deliverables</span>
-                </div>
-                <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center sm:col-span-1 col-span-2">
-                  <span className="block text-xl font-extrabold text-purple-400">
-                    {activeClosure ? activeClosure.status.toUpperCase() : 'NONE'}
-                  </span>
-                  <span className="text-[11px] text-slate-400">Closure Status</span>
-                </div>
-              </div>
-
-              {/* Blockers List */}
-              {eligibility && eligibility.blockers.length > 0 && (
-                <div className="pt-3 border-t border-slate-800">
-                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider block mb-2">
-                    Resolution Required Before Closure:
-                  </span>
-                  <div className="space-y-1.5">
-                    {eligibility.blockers.map((b, idx) => (
-                      <div
-                        key={idx}
-                        className="p-2.5 bg-amber-950/20 border border-amber-900/40 rounded-lg text-xs text-amber-200 flex items-center justify-between"
-                      >
-                        <span>• {b.label}</span>
-                        <span className="text-[10px] font-mono uppercase bg-amber-900/40 px-2 py-0.5 rounded text-amber-300">
-                          {b.entityType}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {eligibility?.eligible ? (
+                <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold rounded-full self-start sm:self-auto">
+                  ✓ Eligible for Closure
+                </span>
+              ) : (
+                <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold rounded-full self-start sm:self-auto">
+                  ⚠️ {eligibility?.blockers.length} Completion Blocker(s)
+                </span>
               )}
             </div>
 
-            {/* Active Closure Request Card */}
-            {activeClosure && (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-bold text-white">Active Closure Request</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Submitted on {activeClosure.submittedAt ? new Date(activeClosure.submittedAt).toLocaleDateString() : 'Draft'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-bold rounded-lg uppercase font-mono">
-                    {activeClosure.status}
-                  </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="p-3.5 bg-[#0B0F19]/60 border border-[#1F2937] rounded-xl text-center">
+                <span className="block text-xl font-extrabold text-cyan-400">
+                  {eligibility?.completedWorkCount} / {eligibility?.totalWorkCount}
+                </span>
+                <span className="text-[11px] text-[#94A3B8] font-mono font-semibold">Completed Work</span>
+              </div>
+              <div className="p-3.5 bg-[#0B0F19]/60 border border-[#1F2937] rounded-xl text-center">
+                <span className="block text-xl font-extrabold text-emerald-400">
+                  {eligibility?.approvedDeliverablesCount} / {eligibility?.totalDeliverablesCount}
+                </span>
+                <span className="text-[11px] text-[#94A3B8] font-mono font-semibold">Approved Deliverables</span>
+              </div>
+              <div className="p-3.5 bg-[#0B0F19]/60 border border-[#1F2937] rounded-xl text-center col-span-2 sm:col-span-1">
+                <span className="block text-xl font-extrabold text-purple-400 font-mono uppercase">
+                  {activeClosure ? activeClosure.status.replace(/_/g, ' ') : 'NONE'}
+                </span>
+                <span className="text-[11px] text-[#94A3B8] font-mono font-semibold">Closure Status</span>
+              </div>
+            </div>
+
+            {eligibility && eligibility.blockers.length > 0 && (
+              <div className="pt-2 border-t border-[#1F2937] space-y-2">
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block">
+                  Blockers to Resolve Before Closure:
+                </span>
+                <div className="space-y-1.5">
+                  {eligibility.blockers.map((b, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 font-medium flex items-center justify-between"
+                    >
+                      <span>• {b.label}</span>
+                      <span className="text-[10px] font-mono uppercase bg-amber-500/20 px-2 py-0.5 rounded text-amber-400 font-bold border border-amber-500/30">
+                        {b.entityType}
+                      </span>
+                    </div>
+                  ))}
                 </div>
+              </div>
+            )}
+          </div>
 
-                {activeClosure.summary && (
-                  <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 text-xs text-slate-300">
-                    <span className="font-semibold text-white block mb-1">Completion Summary:</span>
-                    {activeClosure.summary}
-                  </div>
-                )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* SECTION 2: Completion Checklist */}
+            <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-5 space-y-4 shadow-md">
+              <div className="border-b border-[#1F2937] pb-3">
+                <span className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-widest block">
+                  Section 2
+                </span>
+                <h3 className="text-sm sm:text-base font-extrabold text-[#F8FAFC] flex items-center gap-1.5">
+                  <span>📋</span> Completion Checklist
+                </h3>
+              </div>
 
-                {/* Revision Requests */}
-                {activeClosure.revisions && activeClosure.revisions.length > 0 && (
-                  <div className="pt-2 border-t border-slate-800">
-                    <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider block mb-2">
-                      Closure Revision Feedback:
+              <div className="space-y-2">
+                {checklist.map((item) => {
+                  const isChecked = item.status === 'completed';
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => isDeveloper && item.key !== 'client_approved' && handleToggleChecklist(item.id, item.status)}
+                      className={`p-3.5 rounded-xl border text-xs flex items-center gap-3 transition min-h-[44px] ${
+                        isDeveloper && item.key !== 'client_approved' ? 'cursor-pointer hover:border-indigo-500/50' : ''
+                      } ${
+                        isChecked
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                          : 'bg-[#0B0F19]/60 border-[#1F2937] text-[#94A3B8]'
+                      }`}
+                    >
+                      <span className="text-base font-bold shrink-0">
+                        {isChecked ? '✓' : '○'}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <span className={`font-semibold block truncate ${isChecked ? 'line-through text-[#64748B]' : 'text-[#F8FAFC]'}`}>
+                          {item.label}
+                        </span>
+                        {item.completedByName && (
+                          <span className="text-[10px] text-[#94A3B8] font-mono block mt-0.5 font-medium">
+                            Done by {item.completedByName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SECTION 3: Client Review */}
+            <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-5 space-y-4 shadow-md">
+              <div className="border-b border-[#1F2937] pb-3">
+                <span className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-widest block">
+                  Section 3
+                </span>
+                <h3 className="text-sm sm:text-base font-extrabold text-[#F8FAFC] flex items-center gap-1.5">
+                  <span>🔍</span> Client Closure Review
+                </h3>
+              </div>
+
+              {!activeClosure ? (
+                <div className="p-6 text-center text-xs text-[#94A3B8] space-y-1 bg-[#0B0F19]/60 rounded-xl border border-[#1F2937]">
+                  <p className="font-bold text-[#F8FAFC]">No active closure request yet.</p>
+                  <p className="text-[11px] text-[#94A3B8] font-medium">Developers can submit closure once completion criteria are met.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-[#F8FAFC]">Closure Request Status</h4>
+                      <p className="text-[11px] text-[#94A3B8] font-mono mt-0.5">
+                        Submitted {activeClosure.submittedAt ? new Date(activeClosure.submittedAt).toLocaleDateString() : 'Draft'}
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-mono font-bold rounded-full uppercase">
+                      {activeClosure.status}
                     </span>
-                    <div className="space-y-2">
+                  </div>
+
+                  {activeClosure.summary && (
+                    <div className="p-3.5 bg-[#0B0F19]/60 rounded-xl border border-[#1F2937] text-xs text-[#94A3B8] space-y-1 font-medium">
+                      <span className="font-bold text-[#F8FAFC] block">Summary:</span>
+                      <p className="leading-relaxed">{activeClosure.summary}</p>
+                    </div>
+                  )}
+
+                  {activeClosure.revisions && activeClosure.revisions.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-[#1F2937]">
+                      <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block">
+                        Closure Revisions ({activeClosure.revisions.length}):
+                      </span>
                       {activeClosure.revisions.map((rev) => (
-                        <div
-                          key={rev.id}
-                          className="p-3 bg-amber-950/30 border border-amber-900/50 rounded-lg text-xs space-y-1"
-                        >
-                          <div className="flex items-center justify-between text-amber-200">
-                            <span className="font-bold">{rev.clientName || 'Client'}</span>
-                            <span className="text-[10px] uppercase font-mono px-2 py-0.5 bg-amber-900/50 rounded">
+                        <div key={rev.id} className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs space-y-1">
+                          <div className="flex items-center justify-between text-amber-400 font-bold">
+                            <span>{rev.clientName || 'Client'}</span>
+                            <span className="text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
                               {rev.status}
                             </span>
                           </div>
-                          <p className="text-slate-300 text-xs">{rev.description}</p>
+                          <p className="text-[#94A3B8] text-xs leading-snug font-medium">{rev.description}</p>
                           {isDeveloper && rev.status !== 'resolved' && (
                             <button
                               onClick={() => handleResolveRevision(rev.id)}
-                              className="mt-1 text-[11px] font-bold text-emerald-400 hover:underline block"
+                              className="mt-1 text-[11px] font-bold text-emerald-400 hover:underline block min-h-[36px] cursor-pointer"
                             >
                               ✓ Mark Revision Resolved
                             </button>
@@ -248,72 +311,47 @@ export function ProjectCompletionView({
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Client Review Action Button */}
-                {isClient && activeClosure.status === 'pending_client_approval' && (
-                  <div className="pt-3 border-t border-slate-800 flex justify-end">
-                    <button
-                      onClick={() => setActiveReviewClosure(activeClosure)}
-                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg transition"
-                    >
-                      Review & Approve / Request Changes
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Handoff View */}
-            {handoff && <ProjectHandoffView handoff={handoff} isClient={isClient} onRefresh={loadData} />}
+                  {isClient && activeClosure.status === 'pending_client_approval' && (
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        onClick={() => setActiveReviewClosure(activeClosure)}
+                        className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition min-h-[40px] cursor-pointer"
+                      >
+                        Review & Approve / Request Changes
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Right Col: Completion Checklist */}
-          <div className="space-y-4">
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                <span>📋</span> Completion Checklist
+          {/* SECTION 4: Handoff */}
+          <div className="bg-[#111827] border border-[#1F2937] rounded-2xl p-5 space-y-4 shadow-md">
+            <div className="border-b border-[#1F2937] pb-3">
+              <span className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-widest block">
+                Section 4
+              </span>
+              <h3 className="text-sm sm:text-base font-extrabold text-[#F8FAFC] flex items-center gap-1.5">
+                <span>📦</span> Project Handoff Package
               </h3>
-              <p className="text-[11px] text-slate-400">
-                Track formal completion requirements before sign-off.
-              </p>
-
-              <div className="space-y-2 pt-2">
-                {checklist.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => isDeveloper && item.key !== 'client_approved' && handleToggleChecklist(item.id, item.status)}
-                    className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 transition ${
-                      isDeveloper && item.key !== 'client_approved' ? 'cursor-pointer hover:border-slate-600' : ''
-                    } ${
-                      item.status === 'completed'
-                        ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-200'
-                        : 'bg-slate-950 border-slate-800 text-slate-300'
-                    }`}
-                  >
-                    <span className="text-base mt-0.5">
-                      {item.status === 'completed' ? '✅' : '○'}
-                    </span>
-                    <div className="flex-1">
-                      <span className={`font-medium block ${item.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-200'}`}>
-                        {item.label}
-                      </span>
-                      {item.completedByName && (
-                        <span className="text-[10px] text-slate-500 block mt-0.5">
-                          Done by {item.completedByName}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
+
+            {handoff ? (
+              <ProjectHandoffView handoff={handoff} isClient={isClient} onRefresh={loadData} />
+            ) : (
+              <div className="p-6 text-center text-xs text-[#94A3B8] bg-[#0B0F19]/60 rounded-xl border border-[#1F2937] space-y-1 font-medium">
+                <p className="font-bold text-[#F8FAFC]">Handoff Package Not Delivered Yet</p>
+                <p className="text-[11px] text-[#94A3B8]">Handoff assets will be made available upon closure approval.</p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Developer Closure Modal */}
+      {/* Modals */}
       {isCreatingClosure && (
         <ClosureEditor
           projectId={projectId}
@@ -325,7 +363,6 @@ export function ProjectCompletionView({
         />
       )}
 
-      {/* Client Review Modal */}
       {activeReviewClosure && (
         <ClientClosureReview
           closure={activeReviewClosure}
@@ -339,3 +376,4 @@ export function ProjectCompletionView({
     </div>
   );
 }
+

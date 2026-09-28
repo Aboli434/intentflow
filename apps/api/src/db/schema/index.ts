@@ -33,3 +33,4 @@ export * from './closure_revision_requests';
 export * from './project_handoffs';
 export * from './handoff_items';
 export * from './project_completion_checklist';
+export * from './project_member_activity';

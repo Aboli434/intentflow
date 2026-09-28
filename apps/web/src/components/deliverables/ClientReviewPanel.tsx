@@ -51,33 +51,33 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl max-w-2xl w-full p-6 text-slate-100 overflow-y-auto max-h-[90vh]">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-[#111827] border border-[#1F2937] rounded-2xl shadow-2xl max-w-2xl w-full p-6 text-[#F8FAFC] overflow-y-auto max-h-[90vh]">
+        <div className="flex items-center justify-between pb-4 border-b border-[#1F2937]">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <h2 className="text-xl font-extrabold text-[#F8FAFC] flex items-center gap-2">
               📦 Review Deliverable
             </h2>
-            <p className="text-xs text-slate-400 mt-1">{deliverable.title}</p>
+            <p className="text-xs text-[#94A3B8] font-medium mt-1">{deliverable.title}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 transition text-lg"
+            className="text-[#64748B] hover:text-[#F8FAFC] transition text-lg font-bold"
           >
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-red-900/40 border border-red-500/50 rounded-lg text-xs text-red-300">
+          <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs font-semibold text-rose-400">
             {error}
           </div>
         )}
 
         <div className="my-5 space-y-4">
           <div>
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Description</h4>
-            <p className="text-sm text-slate-200 mt-1 bg-slate-950/60 p-3 rounded-lg border border-slate-800/80">
+            <h4 className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Description</h4>
+            <p className="text-sm text-[#94A3B8] mt-1 bg-[#0B0F19]/60 p-3.5 rounded-xl border border-[#1F2937] font-medium leading-relaxed">
               {deliverable.description || 'No description provided.'}
             </p>
           </div>
@@ -85,12 +85,12 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
           {/* Linked Work Items */}
           {deliverable.linkedWorkItems && deliverable.linkedWorkItems.length > 0 && (
             <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Linked Work Items</h4>
+              <h4 className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Linked Work Items</h4>
               <div className="mt-1 flex flex-wrap gap-2">
                 {deliverable.linkedWorkItems.map((wi) => (
                   <span
                     key={wi.id}
-                    className="px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-md text-xs text-cyan-300 font-mono"
+                    className="px-2.5 py-1 bg-[#0B0F19] border border-[#1F2937] rounded-lg text-xs text-cyan-400 font-mono font-bold"
                   >
                     ✓ {wi.title} ({wi.status})
                   </span>
@@ -102,15 +102,15 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
           {/* Attachments */}
           {deliverable.attachments && deliverable.attachments.length > 0 && (
             <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Attachments & Downloads</h4>
+              <h4 className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Attachments & Downloads</h4>
               <div className="mt-1 space-y-1.5">
                 {deliverable.attachments.map((att) => (
                   <div
                     key={att.id}
-                    className="flex items-center justify-between p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs"
+                    className="flex items-center justify-between p-2.5 bg-[#0B0F19]/60 rounded-xl border border-[#1F2937] text-xs"
                   >
-                    <span className="truncate font-medium text-slate-300">📄 {att.fileName}</span>
-                    <span className="text-slate-500 text-[10px]">{(att.size / 1024).toFixed(1)} KB</span>
+                    <span className="truncate font-bold text-[#F8FAFC]">📄 {att.fileName}</span>
+                    <span className="text-[#94A3B8] text-[10px] font-mono">{(att.size / 1024).toFixed(1)} KB</span>
                   </div>
                 ))}
               </div>
@@ -119,11 +119,11 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
 
           {/* Action selection */}
           {mode === 'view' ? (
-            <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+            <div className="pt-4 border-t border-[#1F2937] flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setMode('request_changes')}
-                className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-300 text-xs font-medium rounded-lg transition"
+                className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition"
               >
                 ↻ Request Changes
               </button>
@@ -131,15 +131,15 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
                 type="button"
                 disabled={submitting}
                 onClick={handleApprove}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-lg transition"
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition"
               >
                 {submitting ? 'Approving...' : '✓ Approve Deliverable'}
               </button>
             </div>
           ) : (
-            <div className="pt-4 border-t border-slate-800 space-y-3">
+            <div className="pt-4 border-t border-[#1F2937] space-y-3">
               <div>
-                <label className="block text-xs font-medium text-amber-300 mb-1">
+                <label className="block text-xs font-bold text-amber-400 mb-1">
                   Required Change Details & Comments *
                 </label>
                 <textarea
@@ -147,14 +147,14 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="Explain clearly what changes or revisions are needed..."
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-[#0B0F19] border border-[#1F2937] rounded-xl p-3 text-xs text-[#F8FAFC] placeholder-[#64748B] focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                 />
               </div>
               <div className="flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setMode('view')}
-                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition"
+                  className="px-3.5 py-2 bg-[#151D2E] hover:bg-[#1F2937] text-[#94A3B8] hover:text-[#F8FAFC] text-xs font-semibold rounded-xl transition"
                 >
                   Cancel
                 </button>
@@ -162,7 +162,7 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
                   type="button"
                   disabled={submitting}
                   onClick={handleRequestChanges}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-lg transition"
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition"
                 >
                   {submitting ? 'Submitting...' : 'Submit Change Request'}
                 </button>
@@ -174,3 +174,4 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
     </div>
   );
 };
+

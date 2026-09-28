@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, desc } from 'drizzle-orm';
 import {
   createProjectSchema,
   updateProjectSchema,
@@ -12,6 +12,7 @@ import {
   organizations,
   organizationMembers,
   users,
+  attachments,
 } from '../../db/schema/index.js';
 import { authenticateRequest, AuthenticatedRequest } from '../../lib/auth.js';
 import { enforcePolicy, getAuthContext } from '../../lib/permissions.js';
@@ -289,77 +290,6 @@ export async function projectRoutes(app: FastifyInstance) {
     });
   });
 
-  // POST /api/projects/:projectId/members — Add project member (Policy: project:manage_members)
-  app.post('/:projectId/members', async (request: AuthenticatedRequest, reply) => {
-    const { projectId } = request.params as { projectId: string };
-    const db = getDb();
-    const user = request.user!;
-
-    const projectRecords = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
-    if (projectRecords.length === 0) {
-      return reply.status(404).send({
-        success: false,
-        error: { code: 'NOT_FOUND', message: 'Project not found' },
-      });
-    }
-
-    const project = projectRecords[0];
-
-    // Policy check: project:manage_members
-    const policy = await enforcePolicy(user.id, project.organizationId, 'project:manage_members', projectId);
-    if (!policy.allowed) {
-      return reply.status(403).send({
-        success: false,
-        error: { code: 'FORBIDDEN', message: policy.reason },
-      });
-    }
-
-    const parseResult = addProjectMemberSchema.safeParse(request.body);
-    if (!parseResult.success) {
-      return reply.status(422).send({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'Invalid payload', details: parseResult.error.format() },
-      });
-    }
-
-    const { userId: targetUserId, role } = parseResult.data;
-
-    // Verify target user belongs to the same organization
-    const targetCtx = await getAuthContext(targetUserId, project.organizationId);
-    if (!targetCtx.orgRole) {
-      return reply.status(400).send({
-        success: false,
-        error: {
-          code: 'USER_NOT_IN_ORG',
-          message: 'Target user must be a member of the organization before being assigned to a project',
-        },
-      });
-    }
-
-    const [pm] = await db
-      .insert(projectMembers)
-      .values({
-        projectId,
-        userId: targetUserId,
-        role,
-      })
-      .onConflictDoNothing()
-      .returning();
-
-    return reply.status(201).send({
-      success: true,
-      data: pm
-        ? {
-            id: pm.id,
-            projectId: pm.projectId,
-            userId: pm.userId,
-            role: pm.role,
-            createdAt: pm.createdAt.toISOString(),
-          }
-        : { message: 'User is already a member of this project' },
-    });
-  });
-
   // POST /api/projects/:projectId/approve — Role-specific business action check (Policy: project:client_approve)
   app.post('/:projectId/approve', async (request: AuthenticatedRequest, reply) => {
     const { projectId } = request.params as { projectId: string };
@@ -392,31 +322,44 @@ export async function projectRoutes(app: FastifyInstance) {
     });
   });
 
-  // DELETE /api/projects/:projectId/members/:memberId — Remove project member (Policy: project:manage_members)
-  app.delete('/:projectId/members/:memberId', async (request: AuthenticatedRequest, reply) => {
-    const { projectId, memberId } = request.params as { projectId: string; memberId: string };
-    const db = getDb();
+  // GET /api/projects/:projectId/attachments — List project attachments
+  app.get('/:projectId/attachments', async (request: AuthenticatedRequest, reply) => {
+    const { projectId } = request.params as { projectId: string };
     const user = request.user!;
+    const db = getDb();
 
-    const projectRecords = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
-    if (projectRecords.length === 0) {
-      return reply.status(404).send({
-        success: false,
-        error: { code: 'NOT_FOUND', message: 'Project not found' },
-      });
+    const [project] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
+    if (!project) {
+      return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Project not found' } });
     }
 
-    const project = projectRecords[0];
-
-    const policy = await enforcePolicy(user.id, project.organizationId, 'project:manage_members', projectId);
+    const policy = await enforcePolicy(user.id, project.organizationId, 'attachment:view', projectId);
     if (!policy.allowed) {
-      return reply.status(403).send({
-        success: false,
-        error: { code: 'FORBIDDEN', message: policy.reason },
-      });
+      return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: policy.reason } });
     }
 
-    await db.delete(projectMembers).where(eq(projectMembers.id, memberId));
-    return reply.send({ success: true, message: 'Project member removed successfully' });
+    const projectFiles = await db
+      .select({
+        attachment: attachments,
+        uploader: users,
+      })
+      .from(attachments)
+      .leftJoin(users, eq(attachments.uploadedBy, users.id))
+      .where(eq(attachments.projectId, projectId))
+      .orderBy(desc(attachments.createdAt));
+
+    const result = projectFiles.map((f) => ({
+      id: f.attachment.id,
+      fileName: f.attachment.fileName,
+      mimeType: f.attachment.mimeType,
+      size: f.attachment.size,
+      relatedEntityType: f.attachment.relatedEntityType || undefined,
+      relatedEntityId: f.attachment.relatedEntityId || undefined,
+      createdAt: f.attachment.createdAt.toISOString(),
+      uploaderName: f.uploader?.name,
+    }));
+
+    return reply.send({ success: true, data: result });
   });
 }
+
