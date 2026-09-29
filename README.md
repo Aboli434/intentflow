@@ -1,116 +1,260 @@
 # IntentFlow
 
-> **IntentFlow turns messy client communication into structured, verified work.**
+> **AI-powered B2B client collaboration platform turning unstructured communication into verified, deliverable work.**
 
 ```text
-Communication ──> AI Interpretation ──> Human Verification ──> Structured Intent
-                                                                        │
-Handoff <── Completion <── Deliverable Review <── Work Execution <──────┘
+Client Communication ──> AI Interpretation ──> Human Verification ──> Confirmed Intent
+                                                                           │
+Final Approval <── Deliverable Review <── Work Execution & Tracking <──────┘
 ```
 
 ---
 
-## Current Status: Phase 20 — Real Deployment, Demo Experience & Final Product Polish
+## Product Problem
+In client service agencies and software consultancies, project scope frequently derails because client feedback is fragmented across unstructured communication channels (emails, chat messages, call notes). Requirements are easily misinterpreted, revisions lack auditability, and developers waste days building out unconfirmed expectations.
 
-IntentFlow has completed **Phase 20 — Real Deployment, Demo Experience & Final Product Polish**.
-The platform is fully deployable, observable, hardened, and portfolio-demo ready.
-
-### 🌟 Key Features & Architecture
-- **Interactive Portfolio Demo Portal (`/demo`)**: One-click role-based login cards (*Client*, *Developer*, *Admin*) for interactive product demonstrations.
-- **Idempotent Demo Database Seed (`pnpm db:seed`)**: Deterministic database seeding for *"Nexus Digital Agency"* featuring real-world conversations, AI intents, kanban work items, and deliverable review flows.
-- **AI Intent Intelligence**: Automated message parsing, intent extraction, requirement confidence scoring, missing question detection, and developer clarification drafting.
-- **Human Review & Traceability**: Developer confirmation/rejection workflow, version history snapshots, and source message traceability mappings.
-- **Structured Work & Execution**: Confirmed intents auto-generate work items with assignees, priority levels, kanban status transitions, and audit logs.
-- **Deliverables & Client Approval**: Milestone deliverables, client review flows (`Approve` / `Request Changes`), revision requests, and closure handoffs.
-- **Production Infrastructure**: Drizzle ORM SQL database migrations (`pnpm db:migrate`), multi-provider object storage (`S3` / `Supabase`), multi-channel notifications (`Resend` / `SendGrid` / `Twilio SMS`), unauthenticated `/health` & `/ready` diagnostic probes, and structured production logging.
-- **Multi-Tenant Security & Isolation**: Strict role-based authorization (Admin, Developer, Client), project membership checks, non-leaking error handlers, and 25MB attachment guards.
+## Solution
+IntentFlow bridges the gap between client communication and engineering execution:
+1. **AI Intent Intelligence**: Extracts concrete requirements, classifications, and confidence ratings from client conversations.
+2. **Human-in-the-Loop Verification**: Requires engineering review and confirmation before anything becomes an actionable work item.
+3. **Structured Review Portal**: Delivers transparent milestones where clients can approve deliverables or submit structured change requests with clear feedback.
 
 ---
 
-## 🚀 Tech Stack
+## Core Workflow
 
-- **Monorepo**: pnpm Workspaces, Turborepo
-- **Web App**: Next.js 15 (App Router), React, TypeScript, Vanilla CSS (Dark SaaS Theme)
-- **Mobile App**: Expo, React Native, TypeScript, Expo Router
-- **Backend API**: Fastify, TypeScript, WebSockets
-- **AI Intelligence Layer**: OpenAI GPT-4o integration + Local fallback engine
-- **Database & Storage**: PostgreSQL, Drizzle ORM, S3 / Supabase Storage
-- **Validation & Security**: Zod, Helmet, Signed Cookies, CORS Origin Guards
+```text
+1. Client Conversation
+   └─ Client posts requirements or feedback in the project conversation thread.
+2. AI Extraction
+   └─ AI parses message intent, suggests scope items, and detects missing details.
+3. Developer Review (Human-in-the-Loop)
+   └─ Developer reviews, adjusts, or confirms the proposed intent.
+4. Work Item Conversion
+   └─ Confirmed intents become trackable tasks with assignees and priority.
+5. Deliverable Packaging
+   └─ Deliverables with attachments are submitted to the client portal.
+6. Formal Client Review
+   └─ Client approves or requests revisions (enforcing detailed feedback >= 10 chars).
+7. Milestone Closure & Handoff
+   └─ Formal signoff with completion checklist and audit timeline.
+```
 
 ---
 
-## 📁 Repository Structure
+## Key Features
+
+- **Interactive Demo Gateway (`/demo`)**: One-click login into dedicated personas (**Admin**, **Developer**, **Client**) with pre-seeded projects and workflows.
+- **AI Intent Intelligence**: Automated extraction of functional requirements, ambiguity flags, and developer clarification drafts with heuristic fallback.
+- **Human Review Safeguard**: Prevents rogue AI changes; all suggested items require developer confirmation.
+- **Collaborative Work Board**: Task tracking with statuses (`todo`, `in_progress`, `blocked`, `completed`), priority levels, and audit logs.
+- **Deliverables & Approval Portal**: Granular client reviews with formal approval states, change request submission, and attachment management.
+- **Real-Time Notifications & Timeline**: In-app notifications and chronologically ordered project activity feed.
+- **Multi-Tenant Security**: Role-based access control (RBAC), organization member boundaries, and strict attachment download isolation.
+- **Responsive Web Design**: Clean, accessible UX optimized across viewports (320px, 375px, 414px, 768px, 1024px, 1440px).
+
+---
+
+## Architecture
+
+```text
+                      ┌──────────────────────┐
+                      │    Next.js 15 Web    │
+                      │  (Vercel / Frontend) │
+                      └──────────┬───────────┘
+                                 │
+                                 │ HTTPS / WSS
+                                 ▼
+                      ┌──────────────────────┐
+                      │    Fastify REST API  │
+                      │  (Render / Railway)  │
+                      └──────────┬───────────┘
+                                 │
+                  ┌──────────────┼──────────────┐
+                  ▼              ▼              ▼
+             PostgreSQL     Object Store    Email / SMS
+             (Drizzle ORM) (S3 / Supabase) (Resend / Twilio)
+```
+
+---
+
+## Tech Stack
+
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Vanilla CSS & Tailwind CSS tokens
+- **Backend API**: Fastify v5, TypeScript, WebSockets
+- **Database & ORM**: PostgreSQL, Drizzle ORM (38 tables, type-safe migrations)
+- **Mobile**: Expo, React Native, TypeScript
+- **Validation**: Zod (@intentflow/validation)
+- **AI Engine**: OpenAI GPT-4o integration with deterministic heuristic fallback
+- **Storage**: Multi-provider driver supporting AWS S3, Supabase Storage, and local storage
+- **Email & SMS**: Resend, SendGrid, Twilio SMS, and development loggers
+
+---
+
+## AI Architecture & Human-in-the-Loop Philosophy
+
+IntentFlow treats AI as an assistant, never as an unsupervised decision maker:
+1. **Context Extraction**: Conversations are packaged into clean prompts containing recent thread context and project scope.
+2. **Deterministic Extraction**: The LLM extracts requirements with explicit confidence ratings and flags ambiguities.
+3. **Draft State**: Extracted requirements are held in `needs_review` state.
+4. **Developer Confirmation**: Only after an authorized team member explicitly confirms the item is it promoted to `confirmed` and converted into actionable work.
+5. **Fallback Safety**: If AI services are unreachable, a deterministic heuristic engine extracts requirements from structured messages to prevent pipeline interruption.
+
+---
+
+## Security & Tenant Isolation
+
+- **Role-Based Access Control (RBAC)**: Strict role hierarchy (Admin, Developer, Client) enforced on all Fastify route handlers.
+- **Organization & Project Boundaries**: All queries enforce organization and project membership checks. Cross-tenant access attempts return `403 Forbidden`.
+- **Attachment Download Protection**: File downloads require authorized project membership and tenant verification.
+- **Safe Environment Guardrails**: Production environment fails fast if default JWT secrets, wildcard CORS, or local storage drivers are detected.
+- **Sanitized Error Handling**: Server errors return standard JSON responses without leaking SQL queries or internal stack traces.
+
+---
+
+## Interactive Demo
+
+To test IntentFlow immediately:
+1. Start the application locally or navigate to the deployed URL.
+2. Visit `/demo`.
+3. Select any persona card:
+   - **Admin**: Explore organization settings, team invitations, and company-wide analytics.
+   - **Developer**: Review AI-generated intents, manage work items, and submit deliverables.
+   - **Client**: Engage in conversations, review deliverables, request revisions, and issue final approvals.
+
+---
+
+## Local Development
+
+### Prerequisites
+- Node.js 18+
+- pnpm 10+
+- PostgreSQL database instance
+
+### Quickstart
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Aboli434/intentflow.git
+   cd intentflow
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   pnpm install
+   ```
+
+3. **Configure Environment:**
+   Create `.env` in the root directory (refer to [docs/deployment/production-environment.md](docs/deployment/production-environment.md)):
+   ```env
+   NODE_ENV=development
+   PORT=4000
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/intentflow_db
+   JWT_SECRET=development_secret_key_intentflow
+   CORS_ORIGIN=http://localhost:3000
+   NEXT_PUBLIC_API_URL=http://localhost:4000
+   ```
+
+4. **Run Migrations & Seed Demo Data:**
+   ```bash
+   pnpm --filter @intentflow/api db:migrate
+   pnpm --filter @intentflow/api db:seed
+   ```
+
+5. **Start Development Servers:**
+   ```bash
+   # Starts both Web (port 3000) and API (port 4000)
+   pnpm dev
+   ```
+
+---
+
+## Environment Variables
+
+| Variable | Scope | Description |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_API_URL` | Web | Base URL of the Fastify API (e.g. `https://api.intentflow.io`) |
+| `NEXT_PUBLIC_WS_URL` | Web | WebSocket URL for real-time updates |
+| `NODE_ENV` | API | Application mode (`development`, `test`, `production`) |
+| `PORT` | API | Port for API server (default `4000`) |
+| `DATABASE_URL` | API | PostgreSQL connection string |
+| `JWT_SECRET` | API | Secret key used for signing session JWT tokens |
+| `CORS_ORIGIN` | API | Allowed frontend origin URL (e.g. `https://intentflow.io`) |
+| `STORAGE_PROVIDER` | API | Object storage driver (`local`, `s3`, `supabase`) |
+| `EMAIL_PROVIDER` | API | Notification provider (`resend`, `sendgrid`, `smtp`, `development`) |
+| `SMS_PROVIDER` | API | SMS provider (`twilio`, `development`) |
+
+See [docs/deployment/production-environment.md](docs/deployment/production-environment.md) for full configuration specs.
+
+---
+
+## Testing & Quality Assurance
+
+IntentFlow includes automated integration, browser, and multi-viewport regression test suites:
+
+```bash
+# Typecheck entire monorepo
+pnpm typecheck
+
+# Lint all packages
+pnpm lint
+
+# Production build check (Static prerender & routes compilation)
+pnpm build
+
+# Run Phase 23 E2E Integration Suite
+npx tsx scratch/test-phase23.ts
+
+# Run Multi-Viewport Browser Verification (320px–1440px)
+npx tsx scratch/test-phase23-browser.ts
+```
+
+---
+
+## Deployment
+
+- **Web (Next.js)**: Optimized for deployment on **Vercel**. Build command: `pnpm build`, Output: `.next`.
+- **API (Fastify)**: Deployable as a Docker container or Node.js service on **Render**, **Railway**, or AWS ECS.
+- **Database**: Managed PostgreSQL on **Supabase**, **Neon**, or AWS RDS.
+- **Storage**: Amazon S3 bucket or Supabase Storage bucket.
+
+See detailed instructions in [docs/deployment/production-deployment.md](docs/deployment/production-deployment.md).
+
+---
+
+## Project Structure
 
 ```
 intentflow/
 ├── apps/
-│   ├── web/          # Next.js web application (Port 3000)
-│   ├── mobile/       # Expo React Native mobile application
-│   └── api/          # Fastify REST API (Port 4000)
+│   ├── web/          # Next.js 15 frontend application
+│   ├── api/          # Fastify v5 backend service
+│   └── mobile/       # React Native Expo mobile application
 ├── packages/
-│   ├── types/        # Shared TypeScript domain types (@intentflow/types)
-│   ├── validation/   # Shared Zod validation schemas (@intentflow/validation)
-│   └── config/       # Shared non-secret configuration constants (@intentflow/config)
+│   ├── types/        # Shared TypeScript domain contracts
+│   ├── validation/   # Shared Zod validation schemas
+│   └── config/       # Shared non-secret configuration constants
 ├── docs/
-│   ├── product/      # Product specifications
-│   ├── ux/           # UX design documentation
-│   ├── architecture/ # Technical architecture guides & Phase 1–20 decision records
-│   ├── deployment/   # Production deployment & environment reference guides
-│   ├── security/     # Production security audit reports
-│   └── qa/           # Smoke test reports & launch checklists
-├── package.json
-├── pnpm-workspace.yaml
-├── turbo.json
-├── tsconfig.json
-├── .env.example
-└── README.md
+│   ├── architecture/ # Architecture diagrams & technical decision records
+│   ├── deployment/   # Environment specs, deployment checklists, and guides
+│   ├── portfolio/    # Case study and design breakdown
+│   └── qa/           # Route matrix, audit logs, and test execution reports
+└── scratch/          # Automated regression & multi-viewport browser test suites
 ```
 
 ---
 
-## 🛠️ Setup Instructions
+## Engineering Highlights
 
-### 1. Prerequisites
-- Node.js >= 18.0.0
-- pnpm >= 8.0.0
-- PostgreSQL database running on port 5432
-
-### 2. Installation & Database Setup
-```bash
-pnpm install
-cp .env.example .env
-pnpm --filter @intentflow/api db:migrate
-pnpm db:seed
-```
+1. **Deterministic Idempotent Seeding**: The test dataset (`Nexus Digital Agency`) can be seeded repeatedly without creating duplicate rows or foreign-key conflicts.
+2. **Strict Validation at Both Tiers**: Client forms provide instantaneous user feedback (e.g., character counters for review comments), while Fastify endpoints enforce server-side Zod validation.
+3. **No Native Alert Disruptions**: Audited interactive controls utilize accessible custom modals (`ConfirmModal`) with Esc keyboard dismiss and body scroll locking.
+4. **Resilient Static Prerendering**: Production builds compile all public and auth routes with isolated SSR dependencies to avoid bundling issues.
 
 ---
 
-## 💻 Development Commands
+## Future Improvements
 
-| Command | Action |
-|---|---|
-| `pnpm dev` | Start web (3000), API (4000), and mobile dev servers |
-| `pnpm build` | Build all packages and applications for production |
-| `pnpm lint` | Run ESLint across all apps and workspace packages |
-| `pnpm typecheck` | Perform strict TypeScript type checking |
-| `pnpm db:seed` | Seed deterministic portfolio demo data (Idempotent) |
-| `npx tsx scratch/test-phase20.ts` | Run Phase 20 final launch verification suite |
-
----
-
-## 🧪 Automated Verification Status
-
-```text
-Phase 16 Integration Suite:  19 / 19 PASS (100%)
-Phase 17 Integration Suite:  19 / 19 PASS (100%)
-Phase 18 Launch Suite:       15 / 15 PASS (100%)
-Phase 19 Verification Suite: 18 / 18 PASS (100%)
-Phase 20 Final Launch Suite: 20 / 20 PASS (100%)
-
-Monorepo Typecheck: PASS (0 Errors across 6 packages)
-Monorepo Linting:   PASS (0 Errors across 6 packages)
-Production Build:   PASS (0 Errors across 6 packages)
-Mobile App Check:   PASS (0 Errors in apps/mobile)
-```
-
-
+- Granular role permission customization per organization.
+- Integration with external issue trackers (GitHub Issues, Jira).
+- Audio transcription for meeting notes into automated intent drafts.

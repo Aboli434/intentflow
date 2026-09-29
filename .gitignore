@@ -27,9 +27,15 @@ logs/
 .env.local
 .env.development.local
 .env.test.local
+.env.production
 .env.production.local
 .env.*.local
 !.env.example
+*.secret
+
+# Uploads & local storage
+uploads/
+scratch/uploads/
 
 # IDE & OS
 .vscode/

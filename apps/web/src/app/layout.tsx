@@ -14,6 +14,10 @@ export const metadata: Metadata = {
   description:
     'IntentFlow turns messy client conversations into structured, AI-verified work. A real-time workspace for clients and developer teams.',
   keywords: 'client collaboration, B2B SaaS, project management, AI intent analysis, deliverable review',
+  robots: {
+    index: true,
+    follow: true,
+  },
   openGraph: {
     title: 'IntentFlow — B2B Client Collaboration Platform',
     description: 'Turn messy client communication into structured, verified work.',
