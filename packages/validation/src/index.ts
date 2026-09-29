@@ -285,7 +285,7 @@ export const updateDeliverableSchema = z.object({
 });
 
 export const requestChangesSchema = z.object({
-  comment: z.string().min(1, 'Comment is required when requesting changes'),
+  comment: z.string().min(10, 'Comment must be at least 10 characters long when requesting changes'),
   description: z.string().optional(),
 });
 

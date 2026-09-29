@@ -189,6 +189,28 @@ export function IntentPanel({
         </div>
       )}
 
+      {/* AI -> Human Confirmation 3-Stage Pipeline */}
+      <div className="bg-[#0B0F19]/80 border border-[#1F2937] rounded-xl p-3 space-y-2">
+        <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+          <span className="flex items-center gap-1.5 text-indigo-400">
+            <span>✨ AI Detection</span>
+          </span>
+          <span>→</span>
+          <span className={`flex items-center gap-1.5 ${intent.status === 'confirmed' ? 'text-emerald-400' : 'text-amber-400 font-extrabold'}`}>
+            <span>👤 Human Verification</span>
+          </span>
+          <span>→</span>
+          <span className={`flex items-center gap-1.5 ${intent.status === 'confirmed' ? 'text-emerald-400 font-extrabold' : 'text-slate-500'}`}>
+            <span>🎯 Verified Work</span>
+          </span>
+        </div>
+        <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden flex">
+          <div className="bg-indigo-500 h-full w-1/3"></div>
+          <div className={`h-full w-1/3 ${intent.status === 'confirmed' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
+          <div className={`h-full w-1/3 ${intent.status === 'confirmed' ? 'bg-emerald-500' : 'bg-slate-700'}`}></div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-start justify-between gap-3 border-b border-[#1F2937] pb-4">
         <div>

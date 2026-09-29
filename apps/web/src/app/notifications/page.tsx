@@ -14,6 +14,7 @@ import {
   formatRelativeTime,
   getNotificationTypeIcon,
 } from '@/lib/notification-utils';
+import { AppHeader } from '@/components/common/Header';
 
 type FilterType = 'all' | 'unread' | 'projects' | 'organization';
 
@@ -102,10 +103,13 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-[#F8FAFC] selection:bg-indigo-600 selection:text-white pb-16">
-      {/* Header Bar */}
-      <header className="sticky top-0 z-30 border-b border-[#1F2937] bg-[#111827]/90 backdrop-blur-md px-4 sm:px-6 py-4 shadow-md">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+      {/* Consistent App Header */}
+      <AppHeader />
+
+      {/* Page Header */}
+      <div className="border-b border-slate-800/80 bg-[#0B0F19] px-4 sm:px-6 py-4">
+        <div className="mx-auto max-w-4xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <Link
               href="/dashboard"
               className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors shrink-0"
@@ -113,7 +117,7 @@ export default function NotificationsPage() {
               ← Dashboard
             </Link>
             <span className="text-slate-700">/</span>
-            <h1 className="text-base sm:text-lg font-extrabold text-slate-100 tracking-tight truncate">
+            <h1 className="text-base sm:text-lg font-extrabold text-slate-100 tracking-tight">
               Notifications Center
             </h1>
             {unreadCount > 0 && (
@@ -132,7 +136,7 @@ export default function NotificationsPage() {
             </button>
           )}
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
       <main className="mx-auto max-w-4xl px-4 sm:px-6 pt-6 space-y-6">
@@ -153,7 +157,7 @@ export default function NotificationsPage() {
                 >
                   {tab}
                   {tab === 'unread' && unreadCount > 0 && (
-                    <span className="ml-1.5 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                    <span className="ml-1.5 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                       {unreadCount}
                     </span>
                   )}

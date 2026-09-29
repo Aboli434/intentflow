@@ -139,9 +139,14 @@ export const ClientReviewPanel: React.FC<ClientReviewPanelProps> = ({
           ) : (
             <div className="pt-4 border-t border-[#1F2937] space-y-3">
               <div>
-                <label className="block text-xs font-bold text-amber-400 mb-1">
-                  Required Change Details & Comments *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-amber-400">
+                    Required Change Details & Comments *
+                  </label>
+                  <span className={`text-[10px] font-mono font-bold ${comment.trim().length >= 10 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {comment.trim().length} / 10 min chars
+                  </span>
+                </div>
                 <textarea
                   rows={4}
                   value={comment}

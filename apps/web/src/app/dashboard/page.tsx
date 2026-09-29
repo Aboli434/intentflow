@@ -158,7 +158,7 @@ export default function DashboardPage() {
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 space-y-8">
         {error && (
-          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs font-semibold text-rose-300 shadow-md flex justify-between items-center animate-in fade-in">
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs font-semibold text-rose-300 shadow-md flex justify-between items-center animate-fade-in">
             <span>{error}</span>
             <button onClick={() => setError(null)} className="font-bold underline hover:text-white">
               Dismiss
@@ -190,7 +190,7 @@ export default function DashboardPage() {
 
         {/* Role-Aware Summary Metrics */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-          <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4.5 space-y-2 shadow-md hover:border-slate-700 transition-all">
+          <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 sm:p-5 space-y-2 shadow-md hover:border-slate-700 transition-all card-glow-hover">
             <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider block">
               {isAdmin ? 'Organizations' : isClient ? 'Workspaces' : 'Your Team'}
             </span>
@@ -198,7 +198,7 @@ export default function DashboardPage() {
             <p className="text-[11px] text-slate-500 font-medium">Active memberships</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4.5 space-y-2 shadow-md hover:border-indigo-500/60 transition-all">
+          <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 sm:p-5 space-y-2 shadow-md hover:border-indigo-500/60 transition-all card-glow-hover">
             <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider block">
               {isClient ? 'Projects' : 'Assigned Projects'}
             </span>
@@ -206,7 +206,7 @@ export default function DashboardPage() {
             <p className="text-[11px] text-slate-500 font-medium">In execution phase</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4.5 space-y-2 shadow-md hover:border-amber-500/60 transition-all">
+          <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 sm:p-5 space-y-2 shadow-md hover:border-amber-500/60 transition-all card-glow-hover">
             <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider block">
               {isClient ? 'Approvals Pending' : 'Pending Actions'}
             </span>
@@ -214,7 +214,7 @@ export default function DashboardPage() {
             <p className="text-[11px] text-slate-500 font-medium">Require immediate review</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4.5 space-y-2 shadow-md hover:border-emerald-500/60 transition-all">
+          <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4 sm:p-5 space-y-2 shadow-md hover:border-emerald-500/60 transition-all card-glow-hover">
             <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider block">
               Notifications
             </span>

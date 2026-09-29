@@ -21,6 +21,7 @@ import { WorkspaceTabKey } from './ProjectWorkspaceTabs';
 import { ProjectStatusBanner, DerivedProjectState } from './ProjectStatusBanner';
 import { ActionRequiredCard, ActionItem } from '../dashboard/ActionRequiredCard';
 import { getNotificationTargetUrl } from '../../lib/notification-utils';
+import { WorkspaceSkeleton } from '../common/WorkspaceSkeleton';
 
 interface ProjectWorkspaceOverviewProps {
   project: Project;
@@ -162,16 +163,7 @@ export function ProjectWorkspaceOverview({
   }
 
   if (loading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-20 bg-[#111827] rounded-2xl border border-[#1F2937]" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-24 bg-[#111827] rounded-2xl border border-[#1F2937]" />
-          ))}
-        </div>
-      </div>
-    );
+    return <WorkspaceSkeleton type="overview" />;
   }
 
   return (
