@@ -9,7 +9,7 @@ async function runBrowserE2EFlow() {
   console.log('   PHASE 21 REAL BROWSER E2E WORKFLOW VERIFICATION   ');
   console.log('====================================================\n');
 
-  const baseUrl = process.env.TEST_URL || 'http://localhost:3005';
+  const baseUrl = process.env.TEST_URL || 'http://localhost:3000';
   let passedCount = 0;
   let totalCount = 0;
 
