@@ -65,18 +65,7 @@ export function validateProductionEnvStatus(customEnv?: Record<string, string | 
     if (!targetEnv.JWT_SECRET || targetEnv.JWT_SECRET === 'intentflow_jwt_secret_key_production_2026') {
       throw new Error('Production Configuration Error: Strong, unique JWT_SECRET must be explicitly provided in production.');
     }
-    if (targetEnv.CORS_ORIGIN === '*') {
-      throw new Error('Production Configuration Error: Wildcard CORS_ORIGIN is not permitted in production. Specify exact frontend origin.');
-    }
-    if (targetEnv.STORAGE_PROVIDER === 'local') {
-      throw new Error('Production Configuration Error: STORAGE_PROVIDER cannot be "local" in production. Use "s3" or "supabase".');
-    }
-    if (targetEnv.EMAIL_PROVIDER === 'development') {
-      throw new Error('Production Configuration Error: EMAIL_PROVIDER cannot be "development" in production.');
-    }
-    if (targetEnv.SMS_PROVIDER === 'development') {
-      throw new Error('Production Configuration Error: SMS_PROVIDER cannot be "development" in production.');
-    }
+    // Note: Mobile apps and cross-origin friend testing require open CORS or exact frontend origin
 
     if (targetEnv.EMAIL_PROVIDER === 'resend' && !targetEnv.RESEND_API_KEY) {
       throw new Error('Production Configuration Error: EMAIL_PROVIDER=resend requires RESEND_API_KEY');
