@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { mobileGetProjects, mobileGetNotifications } from '../../src/api-client';
-import { Project, Notification } from '@intentflow/types';
+import { mobileGetProjects, mobileGetNotifications, mobileGetMe, getMobileDemoRole } from '../../src/api-client';
+import { Project, Notification, User } from '@intentflow/types';
 
 export default function MobileProjectsScreen() {
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [demoRole, setDemoRole] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,6 +17,10 @@ export default function MobileProjectsScreen() {
     setLoading(true);
     setError(null);
     try {
+      setDemoRole(getMobileDemoRole());
+      const meRes = await mobileGetMe().catch(() => null);
+      if (meRes) setCurrentUser(meRes.user);
+
       const projData = await mobileGetProjects();
       setProjects(projData);
 
@@ -63,9 +69,24 @@ export default function MobileProjectsScreen() {
 
       {/* Header Info */}
       <View style={styles.headerBox}>
-        <Text style={styles.phaseBadge}>Phase 12 SaaS Mobile</Text>
+        <View style={styles.demoBadgeRow}>
+          <View style={styles.demoPill}>
+            <View style={styles.demoGreenDot} />
+            <Text style={styles.demoPillText}>
+              {demoRole ? `Demo Mode · ${demoRole.toUpperCase()}` : 'Live Workspace'}
+            </Text>
+          </View>
+          {currentUser && (
+            <Text style={styles.userNameText}>{currentUser.name}</Text>
+          )}
+        </View>
         <Text style={styles.title}>Projects & Workspace</Text>
-        <Text style={styles.subtitle}>Role-aware dashboard & real-time notifications</Text>
+        <Text style={styles.subtitle}>
+          {demoRole === 'client' && 'Review deliverables, request revisions, and track progress.'}
+          {demoRole === 'developer' && 'Review AI intents, confirm scope, and deliver tasks.'}
+          {demoRole === 'admin' && 'Agency oversight, team management, and project tracking.'}
+          {!demoRole && 'Real-time client collaboration & structured delivery.'}
+        </Text>
       </View>
 
       {/* Action Required Card */}
@@ -180,6 +201,37 @@ const styles = StyleSheet.create({
   },
   headerBox: {
     marginBottom: 16,
+  },
+  demoBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  demoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  demoGreenDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  demoPillText: {
+    color: '#818CF8',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  userNameText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '600',
   },
   phaseBadge: {
     color: '#818cf8',

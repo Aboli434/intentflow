@@ -14,16 +14,55 @@ import {
   ProjectMilestone,
 } from '@intentflow/types';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
 
-let authToken: string | null = null;
+const TOKEN_KEY = '@intentflow_mobile_token';
+const ROLE_KEY = '@intentflow_mobile_role';
+const USER_KEY = '@intentflow_mobile_user';
 
-export function setMobileAuthToken(token: string | null) {
+let authToken: string | null = null;
+let currentDemoRole: string | null = null;
+
+export async function initMobileAuth(): Promise<string | null> {
+  try {
+    const storedToken = await AsyncStorage.getItem(TOKEN_KEY);
+    authToken = storedToken;
+    currentDemoRole = await AsyncStorage.getItem(ROLE_KEY);
+    return authToken;
+  } catch {
+    return null;
+  }
+}
+
+export async function setMobileAuthToken(token: string | null, role?: string | null) {
   authToken = token;
+  currentDemoRole = role || null;
+  try {
+    if (token) {
+      await AsyncStorage.setItem(TOKEN_KEY, token);
+      if (role) {
+        await AsyncStorage.setItem(ROLE_KEY, role);
+      } else {
+        await AsyncStorage.removeItem(ROLE_KEY);
+      }
+    } else {
+      await AsyncStorage.removeItem(TOKEN_KEY);
+      await AsyncStorage.removeItem(ROLE_KEY);
+      await AsyncStorage.removeItem(USER_KEY);
+    }
+  } catch (err) {
+    console.error('AsyncStorage auth error:', err);
+  }
 }
 
 export function getMobileAuthToken() {
   return authToken;
+}
+
+export function getMobileDemoRole(): string | null {
+  return currentDemoRole;
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -36,21 +75,50 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${authToken}`;
   }
 
-  const res = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  const json = await res.json();
-  if (!res.ok || !json.success) {
-    throw new Error(json.error?.message || `HTTP Error ${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error('Unable to connect to IntentFlow. Please check your network connection.');
   }
 
-  return json.data as T;
+  let json: any = null;
+  try {
+    json = await res.json();
+  } catch {
+    throw new Error(`Server returned status ${res.status}`);
+  }
+
+  if (res.status === 401) {
+    await setMobileAuthToken(null);
+    throw new Error('Your session has expired. Please sign in again.');
+  }
+
+  if (res.status === 403) {
+    throw new Error("You don't have permission to perform this action.");
+  }
+
+  if (!res.ok || (json && json.success === false)) {
+    throw new Error(json?.error?.message || `HTTP Error ${res.status}`);
+  }
+
+  return (json?.data !== undefined ? json.data : json) as T;
 }
 
 export async function mobileHealthCheck(): Promise<HealthStatus> {
   return request<HealthStatus>('/health');
+}
+
+export async function mobileDemoLogin(role: 'admin' | 'developer' | 'client'): Promise<{ token: string; user: User }> {
+  const data = await request<{ token: string; user: User }>('/api/auth/demo-login', {
+    method: 'POST',
+    body: JSON.stringify({ role }),
+  });
+  await setMobileAuthToken(data.token, role);
+  return data;
 }
 
 export async function mobileLogin(email: string, password: string): Promise<{ token: string; user: User }> {
@@ -58,7 +126,7 @@ export async function mobileLogin(email: string, password: string): Promise<{ to
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
-  setMobileAuthToken(data.token);
+  await setMobileAuthToken(data.token, null);
   return data;
 }
 
@@ -178,9 +246,9 @@ export function connectMobileConversationWebSocket(
 
 export async function mobileLogout(): Promise<void> {
   try {
-    await request('/api/auth/logout', { method: 'POST' });
+    await request('/api/auth/logout', { method: 'POST', body: JSON.stringify({}) });
   } finally {
-    setMobileAuthToken(null);
+    await setMobileAuthToken(null);
   }
 }
 

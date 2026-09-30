@@ -61,14 +61,14 @@ export default function DeliverableDetailScreen() {
   };
 
   const handleRequestChanges = async () => {
-    if (!id || !comment.trim()) {
-      setError('Comment is required when requesting changes');
+    if (!id || comment.trim().length < 10) {
+      setError('Please provide specific feedback detailing requested changes (minimum 10 characters).');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      await mobileRequestDeliverableChanges(id, comment);
+      await mobileRequestDeliverableChanges(id, comment.trim());
       Alert.alert('Submitted', 'Revision request submitted to developers.');
       setShowRequestInput(false);
       fetchDetail();

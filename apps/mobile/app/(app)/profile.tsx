@@ -18,7 +18,7 @@ export default function MobileProfileScreen() {
 
   const handleLogout = async () => {
     await mobileLogout();
-    router.replace('/login');
+    router.replace('/');
   };
 
   if (loading) {
