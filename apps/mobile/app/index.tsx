@@ -8,16 +8,14 @@ import {
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { initMobileAuth, mobileDemoLogin, mobileGetMe } from '../src/api-client';
+import { initMobileAuth, mobileGetMe } from '../src/api-client';
 
-export default function MobileFriendEntryScreen() {
+export default function MobileProductionEntryScreen() {
   const router = useRouter();
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [showPersonas, setShowPersonas] = useState(false);
-  const [loggingInRole, setLoggingInRole] = useState<'client' | 'developer' | 'admin' | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkExistingSession() {
@@ -39,27 +37,12 @@ export default function MobileFriendEntryScreen() {
     checkExistingSession();
   }, []);
 
-  const handleDemoSelect = async (role: 'client' | 'developer' | 'admin') => {
-    if (loggingInRole) return;
-    setLoggingInRole(role);
-    setError(null);
-
-    try {
-      await mobileDemoLogin(role);
-      router.replace('/(app)');
-    } catch (err: any) {
-      setError(err.message || 'Unable to connect to demo server. Please check your internet connection.');
-    } finally {
-      setLoggingInRole(null);
-    }
-  };
-
   if (checkingAuth) {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#0B0F19" />
         <ActivityIndicator size="large" color="#6366F1" />
-        <Text style={styles.loadingText}>Initializing IntentFlow...</Text>
+        <Text style={styles.loadingText}>Loading Intent...</Text>
       </View>
     );
   }
@@ -72,149 +55,75 @@ export default function MobileFriendEntryScreen() {
         <View style={styles.brandHeader}>
           <View style={styles.logoBadge}>
             <View style={styles.logoDot} />
-            <Text style={styles.logoText}>IntentFlow</Text>
+            <Text style={styles.logoText}>Intent</Text>
           </View>
           <Text style={styles.mainTitle}>
-            AI turns messy communication into <Text style={styles.highlightText}>structured work.</Text>
+            Turn communication into <Text style={styles.highlightText}>structured work.</Text>
           </Text>
           <Text style={styles.subtitle}>
-            A mobile client collaboration platform with human-in-the-loop verification.
+            A unified client collaboration platform with human-in-the-loop verification, real-time activity, deliverables, and role-based workspaces.
           </Text>
         </View>
 
-        {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>⚠️ {error}</Text>
-          </View>
-        )}
-
-        {!showPersonas ? (
-          /* Main Entry Action */
-          <View style={styles.actionCard}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => setShowPersonas(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.primaryButtonText}>Explore Demo →</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => router.push('/login')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.secondaryButtonText}>Sign In with Account</Text>
-            </TouchableOpacity>
-
-            <View style={styles.featurePillsRow}>
-              <View style={styles.featurePill}>
-                <Text style={styles.featurePillText}>⚡ Zero Sign-Up Required</Text>
-              </View>
-              <View style={styles.featurePill}>
-                <Text style={styles.featurePillText}>🛡️ Real Live Data</Text>
-              </View>
+        {/* Value Highlights */}
+        <View style={styles.highlightsContainer}>
+          <View style={styles.highlightItem}>
+            <View style={[styles.highlightIconBox, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
+              <Text style={styles.highlightIcon}>✨</Text>
+            </View>
+            <View style={styles.highlightTextCol}>
+              <Text style={styles.highlightTitle}>AI Intent Processing</Text>
+              <Text style={styles.highlightDesc}>Automatically extracts actionable scope & requirements.</Text>
             </View>
           </View>
-        ) : (
-          /* Persona Selection Cards */
-          <View style={styles.personaSection}>
-            <View style={styles.personaHeaderRow}>
-              <Text style={styles.personaTitle}>Choose how you want to explore</Text>
-              <TouchableOpacity onPress={() => setShowPersonas(false)}>
-                <Text style={styles.backLink}>Back</Text>
-              </TouchableOpacity>
+
+          <View style={styles.highlightItem}>
+            <View style={[styles.highlightIconBox, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
+              <Text style={styles.highlightIcon}>🛡️</Text>
             </View>
-
-            {/* Persona 1: Client */}
-            <TouchableOpacity
-              style={[styles.personaCard, loggingInRole === 'client' && styles.personaCardActive]}
-              onPress={() => handleDemoSelect('client')}
-              disabled={Boolean(loggingInRole)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.personaTopRow}>
-                <View style={[styles.personaIconBox, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
-                  <Text style={styles.personaIcon}>💬</Text>
-                </View>
-                <View style={styles.personaTitleColumn}>
-                  <Text style={styles.personaName}>Client Persona</Text>
-                  <Text style={styles.personaSubtitle}>Stakeholder & Reviewer</Text>
-                </View>
-                {loggingInRole === 'client' ? (
-                  <ActivityIndicator size="small" color="#38BDF8" />
-                ) : (
-                  <Text style={styles.arrowIcon}>→</Text>
-                )}
-              </View>
-              <Text style={styles.personaDescription}>
-                • Review conversation threads{'\n'}
-                • Track project milestone progress{'\n'}
-                • Approve deliverables & request revisions
-              </Text>
-            </TouchableOpacity>
-
-            {/* Persona 2: Developer */}
-            <TouchableOpacity
-              style={[styles.personaCard, loggingInRole === 'developer' && styles.personaCardActive]}
-              onPress={() => handleDemoSelect('developer')}
-              disabled={Boolean(loggingInRole)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.personaTopRow}>
-                <View style={[styles.personaIconBox, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
-                  <Text style={styles.personaIcon}>🛠️</Text>
-                </View>
-                <View style={styles.personaTitleColumn}>
-                  <Text style={styles.personaName}>Developer Persona</Text>
-                  <Text style={styles.personaSubtitle}>Engineering & Delivery</Text>
-                </View>
-                {loggingInRole === 'developer' ? (
-                  <ActivityIndicator size="small" color="#6366F1" />
-                ) : (
-                  <Text style={styles.arrowIcon}>→</Text>
-                )}
-              </View>
-              <Text style={styles.personaDescription}>
-                • Review AI-extracted functional requirements{'\n'}
-                • Confirm or adjust intent scope{'\n'}
-                • Manage tasks & submit deliverables
-              </Text>
-            </TouchableOpacity>
-
-            {/* Persona 3: Workspace Admin */}
-            <TouchableOpacity
-              style={[styles.personaCard, loggingInRole === 'admin' && styles.personaCardActive]}
-              onPress={() => handleDemoSelect('admin')}
-              disabled={Boolean(loggingInRole)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.personaTopRow}>
-                <View style={[styles.personaIconBox, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-                  <Text style={styles.personaIcon}>⚡</Text>
-                </View>
-                <View style={styles.personaTitleColumn}>
-                  <Text style={styles.personaName}>Workspace Admin</Text>
-                  <Text style={styles.personaSubtitle}>Agency Operations</Text>
-                </View>
-                {loggingInRole === 'admin' ? (
-                  <ActivityIndicator size="small" color="#F59E0B" />
-                ) : (
-                  <Text style={styles.arrowIcon}>→</Text>
-                )}
-              </View>
-              <Text style={styles.personaDescription}>
-                • Manage organization & team members{'\n'}
-                • Project directory and timeline oversight{'\n'}
-                • Agency-wide activity audit log
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.highlightTextCol}>
+              <Text style={styles.highlightTitle}>Multi-Tenant RBAC</Text>
+              <Text style={styles.highlightDesc}>Tailored workspaces for Admins, Developers, and Clients.</Text>
+            </View>
           </View>
-        )}
+
+          <View style={styles.highlightItem}>
+            <View style={[styles.highlightIconBox, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+              <Text style={styles.highlightIcon}>📦</Text>
+            </View>
+            <View style={styles.highlightTextCol}>
+              <Text style={styles.highlightTitle}>Milestones & Deliverables</Text>
+              <Text style={styles.highlightDesc}>Review deliverables, request revisions, and sign off with audit logs.</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Authentication Actions */}
+        <View style={styles.actionCard}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => router.push('/login')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.primaryButtonText}>Sign In</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/signup')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.secondaryButtonText}>Create Account</Text>
+          </TouchableOpacity>
+
+          <View style={styles.securityRow}>
+            <Text style={styles.securityText}>🔒 End-to-end encrypted session & multi-tenant isolation</Text>
+          </View>
+        </View>
 
         <View style={styles.footerNote}>
           <Text style={styles.footerText}>
-            IntentFlow Mobile Preview v1.0.0 · Powered by Fastify & PostgreSQL
+            Intent · Enterprise Client Collaboration
           </Text>
         </View>
       </ScrollView>
@@ -246,7 +155,7 @@ const styles = StyleSheet.create({
   },
   brandHeader: {
     marginTop: 20,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   logoBadge: {
     flexDirection: 'row',
@@ -254,7 +163,7 @@ const styles = StyleSheet.create({
     gap: 8,
     alignSelf: 'flex-start',
     backgroundColor: '#1E293B',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
     marginBottom: 16,
@@ -267,13 +176,13 @@ const styles = StyleSheet.create({
   },
   logoText: {
     color: '#F8FAFC',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   mainTitle: {
-    fontSize: 28,
-    lineHeight: 36,
+    fontSize: 30,
+    lineHeight: 38,
     fontWeight: '900',
     color: '#F8FAFC',
     letterSpacing: -0.5,
@@ -284,31 +193,56 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 22,
     color: '#94A3B8',
     fontWeight: '500',
   },
-  errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
+  highlightsContainer: {
+    gap: 16,
+    marginVertical: 12,
   },
-  errorText: {
-    color: '#FCA5A5',
+  highlightItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: '#111827',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1F2937',
+  },
+  highlightIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  highlightIcon: {
+    fontSize: 20,
+  },
+  highlightTextCol: {
+    flex: 1,
+  },
+  highlightTitle: {
+    color: '#F8FAFC',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  highlightDesc: {
+    color: '#94A3B8',
     fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 18,
+    lineHeight: 16,
   },
   actionCard: {
     backgroundColor: '#111827',
     borderRadius: 20,
-    padding: 24,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#1F2937',
-    gap: 14,
+    gap: 12,
+    marginTop: 10,
   },
   primaryButton: {
     backgroundColor: '#4F46E5',
@@ -341,96 +275,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  featurePillsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    marginTop: 8,
+  securityRow: {
+    marginTop: 6,
+    alignItems: 'center',
   },
-  featurePill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  featurePillText: {
+  securityText: {
     color: '#64748B',
     fontSize: 11,
-    fontWeight: '600',
-  },
-  personaSection: {
-    gap: 14,
-  },
-  personaHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  personaTitle: {
-    color: '#F8FAFC',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  backLink: {
-    color: '#818CF8',
-    fontSize: 13,
-    fontWeight: '700',
-    padding: 6,
-  },
-  personaCard: {
-    backgroundColor: '#111827',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#1F2937',
-  },
-  personaCardActive: {
-    borderColor: '#6366F1',
-    backgroundColor: '#172033',
-  },
-  personaTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 10,
-  },
-  personaIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  personaIcon: {
-    fontSize: 20,
-  },
-  personaTitleColumn: {
-    flex: 1,
-  },
-  personaName: {
-    color: '#F8FAFC',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  personaSubtitle: {
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  arrowIcon: {
-    color: '#64748B',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  personaDescription: {
-    color: '#94A3B8',
-    fontSize: 12,
-    lineHeight: 18,
     fontWeight: '500',
+    textAlign: 'center',
   },
   footerNote: {
-    marginTop: 30,
+    marginTop: 20,
     alignItems: 'center',
   },
   footerText: {

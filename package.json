@@ -10,6 +10,10 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
   },
   "devDependencies": {
+    "@babel/plugin-transform-class-properties": "^8.0.1",
+    "@babel/plugin-transform-private-methods": "^8.0.1",
+    "@babel/plugin-transform-private-property-in-object": "^8.0.5",
+    "babel-preset-expo": "^57.0.13",
     "eslint": "^9.39.5",
     "prettier": "^3.9.9",
     "tsx": "^4.23.15",

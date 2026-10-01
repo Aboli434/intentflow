@@ -47,3 +47,16 @@ Thumbs.db
 build/
 coverage/
 *.tsbuildinfo
+
+# Android build artifacts
+apps/mobile/android/app/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/build/
+apps/mobile/android/local.properties
+
+# APK / AAB release binaries (don't commit binaries to git)
+*.apk
+*.aab
+
+# Scratch / one-off scripts
+scratch/

@@ -13,11 +13,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@babel/runtime": "^8.0.5",
+    "@expo/metro-runtime": "~4.0.1",
     "@intentflow/config": "workspace:*",
     "@intentflow/types": "workspace:*",
     "@intentflow/validation": "workspace:*",
-    "@react-native-async-storage/async-storage": "^3.1.1",
+    "@react-native-async-storage/async-storage": "^1.23.1",
     "expo": "~52.0.0",
+    "expo-asset": "^11.0.5",
     "expo-constants": "~17.0.0",
     "expo-linking": "~7.0.0",
     "expo-router": "~4.0.0",

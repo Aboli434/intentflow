@@ -16,53 +16,41 @@ import {
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://intentflow-y1ga.onrender.com';
 
 const TOKEN_KEY = '@intentflow_mobile_token';
 const ROLE_KEY = '@intentflow_mobile_role';
 const USER_KEY = '@intentflow_mobile_user';
 
 let authToken: string | null = null;
-let currentDemoRole: string | null = null;
 
 export async function initMobileAuth(): Promise<string | null> {
   try {
     const storedToken = await AsyncStorage.getItem(TOKEN_KEY);
     authToken = storedToken;
-    currentDemoRole = await AsyncStorage.getItem(ROLE_KEY);
     return authToken;
   } catch {
     return null;
   }
 }
 
-export async function setMobileAuthToken(token: string | null, role?: string | null) {
+export async function setMobileAuthToken(token: string | null) {
   authToken = token;
-  currentDemoRole = role || null;
   try {
     if (token) {
       await AsyncStorage.setItem(TOKEN_KEY, token);
-      if (role) {
-        await AsyncStorage.setItem(ROLE_KEY, role);
-      } else {
-        await AsyncStorage.removeItem(ROLE_KEY);
-      }
     } else {
       await AsyncStorage.removeItem(TOKEN_KEY);
       await AsyncStorage.removeItem(ROLE_KEY);
       await AsyncStorage.removeItem(USER_KEY);
     }
   } catch (err) {
-    console.error('AsyncStorage auth error:', err);
+    console.error('Auth storage error:', err);
   }
 }
 
 export function getMobileAuthToken() {
   return authToken;
-}
-
-export function getMobileDemoRole(): string | null {
-  return currentDemoRole;
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -112,21 +100,12 @@ export async function mobileHealthCheck(): Promise<HealthStatus> {
   return request<HealthStatus>('/health');
 }
 
-export async function mobileDemoLogin(role: 'admin' | 'developer' | 'client'): Promise<{ token: string; user: User }> {
-  const data = await request<{ token: string; user: User }>('/api/auth/demo-login', {
-    method: 'POST',
-    body: JSON.stringify({ role }),
-  });
-  await setMobileAuthToken(data.token, role);
-  return data;
-}
-
 export async function mobileLogin(email: string, password: string): Promise<{ token: string; user: User }> {
   const data = await request<{ token: string; user: User }>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
-  await setMobileAuthToken(data.token, null);
+  await setMobileAuthToken(data.token);
   return data;
 }
 
@@ -135,7 +114,7 @@ export async function mobileSignup(name: string, email: string, password: string
     method: 'POST',
     body: JSON.stringify({ name, email, password }),
   });
-  setMobileAuthToken(data.token);
+  await setMobileAuthToken(data.token);
   return data;
 }
 

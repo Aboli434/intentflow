@@ -1,35 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { mobileGetProjects, mobileGetNotifications, mobileGetMe, getMobileDemoRole } from '../../src/api-client';
+import { mobileGetProjects, mobileGetNotifications, mobileGetMe } from '../../src/api-client';
 import { Project, Notification, User } from '@intentflow/types';
 
 export default function MobileProjectsScreen() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [demoRole, setDemoRole] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
-    setLoading(true);
     setError(null);
     try {
-      setDemoRole(getMobileDemoRole());
-      const meRes = await mobileGetMe().catch(() => null);
+      const [meRes, projData, notifData] = await Promise.all([
+        mobileGetMe().catch(() => null),
+        mobileGetProjects().catch(() => []),
+        mobileGetNotifications().catch(() => []),
+      ]);
+
       if (meRes) setCurrentUser(meRes.user);
-
-      const projData = await mobileGetProjects();
       setProjects(projData);
-
-      const notifData = await mobileGetNotifications();
       setNotifications(notifData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
+      setError(err instanceof Error ? err.message : 'Failed to fetch workspace data');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -37,14 +37,24 @@ export default function MobileProjectsScreen() {
     fetchData();
   }, []);
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
   const unreadCount = notifications.filter((n) => !n.readAt).length;
-  const actionRequiredCount = notifications.filter((n) => !n.readAt && (n.type.includes('deliverable') || n.type.includes('closure') || n.type.includes('work'))).length;
+  const actionRequiredCount = notifications.filter(
+    (n) => !n.readAt && (n.type.includes('deliverable') || n.type.includes('closure') || n.type.includes('work'))
+  ).length;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
+    >
       <Stack.Screen
         options={{
-          title: 'IntentFlow Workspace',
+          title: 'Intent',
           headerRight: () => (
             <View style={styles.headerRightRow}>
               <TouchableOpacity
@@ -69,23 +79,18 @@ export default function MobileProjectsScreen() {
 
       {/* Header Info */}
       <View style={styles.headerBox}>
-        <View style={styles.demoBadgeRow}>
-          <View style={styles.demoPill}>
-            <View style={styles.demoGreenDot} />
-            <Text style={styles.demoPillText}>
-              {demoRole ? `Demo Mode · ${demoRole.toUpperCase()}` : 'Live Workspace'}
-            </Text>
+        <View style={styles.badgeRow}>
+          <View style={styles.statusPill}>
+            <View style={styles.greenDot} />
+            <Text style={styles.statusPillText}>Live Workspace</Text>
           </View>
           {currentUser && (
             <Text style={styles.userNameText}>{currentUser.name}</Text>
           )}
         </View>
-        <Text style={styles.title}>Projects & Workspace</Text>
+        <Text style={styles.title}>Projects & Workspaces</Text>
         <Text style={styles.subtitle}>
-          {demoRole === 'client' && 'Review deliverables, request revisions, and track progress.'}
-          {demoRole === 'developer' && 'Review AI intents, confirm scope, and deliver tasks.'}
-          {demoRole === 'admin' && 'Agency oversight, team management, and project tracking.'}
-          {!demoRole && 'Real-time client collaboration & structured delivery.'}
+          Real-time client collaboration, structured deliverables, and AI-assisted workflows.
         </Text>
       </View>
 
@@ -104,13 +109,13 @@ export default function MobileProjectsScreen() {
             </View>
           </View>
           <Text style={styles.actionCardBody}>
-            You have items requiring immediate review or action in your projects.
+            You have deliverables or project updates requiring your review.
           </Text>
           <Text style={styles.actionCardLink}>Review Pending Actions →</Text>
         </TouchableOpacity>
       )}
 
-      {loading && (
+      {loading && !refreshing && (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#6366f1" />
         </View>
@@ -127,7 +132,8 @@ export default function MobileProjectsScreen() {
 
       {!loading && !error && projects.length === 0 && (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No active projects found.</Text>
+          <Text style={styles.emptyTitle}>No Projects Yet</Text>
+          <Text style={styles.emptyText}>You haven't been assigned to any project workspace yet.</Text>
         </View>
       )}
 
@@ -140,7 +146,7 @@ export default function MobileProjectsScreen() {
             activeOpacity={0.7}
           >
             <View style={styles.cardHeader}>
-              <Text style={styles.orgName}>{item.organizationName}</Text>
+              <Text style={styles.orgName}>{item.organizationName || 'WORKSPACE'}</Text>
               <Text style={styles.statusBadge}>{item.status}</Text>
             </View>
             <Text style={styles.cardTitle}>{item.name}</Text>
@@ -202,13 +208,13 @@ const styles = StyleSheet.create({
   headerBox: {
     marginBottom: 16,
   },
-  demoBadgeRow: {
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginBottom: 8,
   },
-  demoPill: {
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -217,13 +223,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  demoGreenDot: {
+  greenDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#10B981',
   },
-  demoPillText: {
+  statusPillText: {
     color: '#818CF8',
     fontSize: 11,
     fontWeight: '800',
@@ -233,25 +239,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  phaseBadge: {
-    color: '#818cf8',
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    fontSize: 11,
-    fontFamily: 'Courier',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 6,
-  },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#94a3b8',
+    marginTop: 2,
+    lineHeight: 18,
   },
   actionCard: {
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
@@ -312,10 +309,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#1e293b',
+    marginTop: 20,
+  },
+  emptyTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
   },
   emptyText: {
     color: '#94a3b8',
-    fontSize: 14,
+    fontSize: 13,
+    textAlign: 'center',
   },
   errorCard: {
     backgroundColor: 'rgba(248, 113, 113, 0.1)',
@@ -323,6 +328,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(248, 113, 113, 0.3)',
+    marginBottom: 16,
   },
   errorText: {
     color: '#f87171',
